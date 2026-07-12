@@ -1456,13 +1456,21 @@ window.handleLogin = async function() {
   
   if (user === 'admin1' && pass === 'admin1234') {
     Buffer.show('এডমিন লগইন...');
-    setTimeout(() => {
-      isAdmin = true;
-      document.getElementById('authScreen').style.display = 'none';
-      document.getElementById('appScreen').style.display = 'block';
-      openPage('adminScreen');
+    try {
+      // নতুন লাইন: ফায়ারবেসে অ্যাডমিন হিসেবে লগইন করানো হচ্ছে
+      await auth.signInWithEmailAndPassword('admin1@starloans.com', pass);
+      
+      setTimeout(() => {
+        isAdmin = true;
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        openPage('adminScreen');
+        Buffer.hide();
+      }, 600);
+    } catch(e) {
       Buffer.hide();
-    }, 600);
+      showToast('অ্যাডমিন লগইন ফেইল হয়েছে');
+    }
     return;
   }
   
