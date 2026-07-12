@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>স্টার ফিন্যান্স · লোন & FD</title>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',system-ui,sans-serif; -webkit-tap-highlight-color:transparent; }
+    body { background:#0a0a0f; color:#fff; min-height:100vh; overflow-x:hidden; }
+    :root { --primary:#00f2fe; --primary-dark:#4facfe; --gold:#FFD700; --dark-card:#151520; --border:rgba(0,242,254,0.2); --danger:#ff4d4d; --success:#43e97b; --warning:#f39c12; }
+
+    /* Auth Screen */
+    #authScreen { position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at center,#151520,#0a0a0f); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
+    .auth-box { background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:35px 25px; border-radius:20px; width:90%; max-width:400px; backdrop-filter:blur(10px); text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.6); }
+    .auth-logo i { font-size:55px; color:var(--primary); margin-bottom:15px; text-shadow:0 0 15px var(--primary); }
+    .auth-input { width:100%; background:rgba(0,0,0,0.6); border:1px solid var(--border); color:#fff; padding:15px; border-radius:12px; margin-bottom:15px; outline:none; transition:0.3s; font-size:15px; }
+    .auth-input:focus { border-color:var(--primary); box-shadow:0 0 12px rgba(0,242,254,0.4); }
+    .auth-btn { width:100%; background:linear-gradient(135deg,var(--primary-dark),var(--primary)); color:#000; border:none; padding:15px; border-radius:12px; font-weight:bold; font-size:16px; cursor:pointer; transition:0.3s; }
+    .auth-btn:active { transform:scale(0.96); }
+    .auth-switch { color:var(--gold); margin-top:20px; font-size:14px; cursor:pointer; text-decoration:underline; transition:0.3s; }
+    .auth-switch:hover { color:#fff; }
+
+    /* App Structure */
+    #appScreen { display:none; padding-bottom:70px; }
+    .header { background:rgba(21,21,32,0.95); backdrop-filter:blur(10px); padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; box-shadow:0 4px 15px rgba(0,0,0,0.3); }
+    .header h2 { color:var(--primary); font-size:22px; font-weight:800; letter-spacing:1px; }
+    .user-chip { background:rgba(0,242,254,0.1); padding:8px 16px; border-radius:30px; border:1px solid var(--primary); font-size:14px; font-weight:bold; display:flex; align-items:center; gap:8px; cursor:pointer; transition:0.3s; }
+    .user-chip:hover { background:var(--primary); color:#000; }
+
+    .dashboard-container { padding:20px; }
+    
+    /* Balance Card */
+    .balance-card { background:linear-gradient(135deg,#1f1c2c,#928DAB); border-radius:24px; padding:30px 20px; text-align:center; border:1px solid rgba(255,255,255,0.1); box-shadow:0 15px 30px rgba(0,0,0,0.4); margin-bottom:25px; position:relative; overflow:hidden; }
+    .balance-amount { font-size:45px; font-weight:bold; color:var(--gold); text-shadow:0 0 15px rgba(255,215,0,0.6); margin:10px 0; }
+
+    /* Quick Amount Cards */
+    .quick-amount-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:15px 0; }
+    .quick-amount-card { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; transition:0.3s; color:#fff; font-weight:bold; }
+    .quick-amount-card:hover { background:var(--primary); color:#000; border-color:var(--primary); transform:scale(1.05); }
+    .quick-amount-card.active { background:var(--primary); color:#000; border-color:var(--primary); }
+
+    /* CIBIL Score */
+    .civil-score-container { background:var(--dark-card); border:1px solid var(--border); border-radius:20px; padding:20px; margin-bottom:25px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,0.3); }
+    .civil-header { display:flex; justify-content:space-between; align-items:center; font-size:16px; font-weight:bold; margin-bottom:15px; color:#ddd; }
+    .cibil-gauge-wrap { display:flex; justify-content:center; position:relative; }
+    .cibil-gauge { position:relative; width:200px; height:110px; }
+    .cibil-gauge svg { width:100%; height:100%; overflow:visible; }
+    .cibil-gauge .track { stroke:#2a2a3a; stroke-width:12; stroke-linecap:round; fill:none; }
+    .cibil-gauge .progress { stroke-width:14; stroke-linecap:round; fill:none; stroke-dasharray:125.6; stroke-dashoffset:125.6; transition:stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s; }
+    .cibil-gauge .score-text { position:absolute; bottom:0; left:0; right:0; text-align:center; font-size:32px; font-weight:800; color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.3); }
+    .cibil-gauge .score-label { position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-size:12px; color:#aaa; font-weight:bold; text-transform:uppercase; letter-spacing:1px; }
+
+    /* Grid Menu */
+    .grid-menu { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px; }
+    .menu-card { background:var(--dark-card); border:1px solid rgba(255,255,255,0.05); border-radius:18px; padding:25px 15px; text-align:center; cursor:pointer; transition:0.3s; box-shadow:0 5px 15px rgba(0,0,0,0.2); }
+    .menu-card:hover { transform:translateY(-5px); border-color:var(--primary); background:rgba(0,242,254,0.05); }
+    .menu-icon { font-size:35px; color:var(--primary); margin-bottom:15px; }
+    .menu-card h4 { font-size:16px; font-weight:600; color:#eee; }
+
+    /* Page Screens */
+    .page-screen { display:none; background:var(--dark-card); border-radius:20px; padding:25px; margin-top:10px; border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,0.5); min-height:60vh; }
+    .page-header { display:flex; align-items:center; gap:15px; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .page-header h3 { color:var(--gold); font-size:22px; font-weight:bold; }
+    .page-back { background:rgba(255,255,255,0.1); border:none; color:#fff; font-size:18px; width:40px; height:40px; border-radius:50%; cursor:pointer; transition:0.3s; display:flex; align-items:center; justify-content:center; }
+    
+    .btn-break { background:linear-gradient(135deg,var(--danger),#991b1b); color:white; border:none; padding:15px; border-radius:12px; width:100%; font-weight:bold; font-size:15px; cursor:pointer; margin-top:15px; transition:0.3s; }
+    .btn-outline { background:transparent; border:1.5px solid var(--primary); color:var(--primary); padding:14px; border-radius:12px; width:100%; font-weight:bold; font-size:15px; cursor:pointer; margin-top:12px; transition:0.3s; }
+
+    /* Admin UI */
+    .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:20px; }
+    .admin-card { background:linear-gradient(145deg, #1f1f2e, #151520); border:1px solid #333; border-radius:18px; padding:20px 15px; text-align:center; cursor:pointer; transition:0.3s; }
+    .admin-card:hover { border-color:var(--gold); transform:translateY(-5px); }
+    .admin-card i { font-size:28px; color:var(--gold); margin-bottom:12px; }
+
+    .admin-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:3000; backdrop-filter:blur(8px); }
+    .admin-modal-box { background:#151520; border:1px solid var(--gold); border-radius:24px; padding:30px; max-width:450px; width:92%; max-height:85vh; overflow-y:auto; position:relative; }
+    .close-modal { position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; color:#fff; width:35px; height:35px; border-radius:50%; font-size:20px; cursor:pointer; }
+    .admin-req-item { background:rgba(0,0,0,0.5); padding:18px; border-radius:15px; border:1px solid #333; margin-bottom:15px; }
+    .admin-req-item .actions { margin-top:15px; display:flex; gap:12px; }
+    .admin-req-item .actions button { flex:1; padding:10px; border-radius:10px; border:none; font-weight:bold; font-size:14px; cursor:pointer; }
+    .btn-approve { background:var(--success); color:#000; }
+    .btn-reject { background:rgba(255,77,77,0.2); color:var(--danger); border:1px solid var(--danger) !important; }
+    
+    .admin-chat-header { display:flex; align-items:center; gap:10px; cursor:pointer; color:var(--primary); font-size:18px; justify-content:center; width:100%; }
+    .admin-chat-messages { height:350px; overflow-y:auto; background:rgba(0,0,0,0.5); padding:15px; border-radius:10px; margin-bottom:15px; display:flex; flex-direction:column; gap:10px; }
+
+    .upi-box { background:rgba(0,0,0,0.4); border-radius:15px; padding:20px; margin:15px 0; border:1.5px dashed var(--primary); text-align:left; }
+    .upi-box input { background:#0a0a0f; border:1px solid #333; padding:15px; border-radius:10px; color:#fff; width:100%; margin-top:12px; font-size:15px; outline:none; }
+    .upi-box input:focus { border-color:var(--primary); }
+
+    .toast { position:fixed; bottom:40px; left:50%; transform:translateX(-50%); background:var(--primary); color:#000; padding:15px 30px; border-radius:30px; font-weight:bold; font-size:15px; display:none; z-index:9999; box-shadow:0 10px 30px rgba(0,242,254,0.3); }
+    .screen-transition { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+    @keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+    .loan-slider-container { background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #333; margin:15px 0; }
+    .loan-slider-container label { display:block; color:#ddd; font-size:14px; margin-bottom:8px; }
+    .loan-slider-container input[type="range"] { width:100%; -webkit-appearance:none; background:linear-gradient(90deg,var(--primary),var(--gold)); height:6px; border-radius:3px; outline:none; }
+    .loan-slider-container input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff; cursor:pointer; border:2px solid var(--primary); box-shadow:0 0 10px rgba(0,242,254,0.3); }
+    .loan-slider-container .slider-values { display:flex; justify-content:space-between; font-size:13px; color:#aaa; margin-top:8px; }
+    .loan-slider-container .selected-amount { text-align:center; font-size:24px; font-weight:bold; color:var(--gold); margin-top:10px; }
+
+    .fd-card { background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; border:1px solid #333; margin-bottom:15px; }
+    .fd-card .fd-amount { font-size:18px; font-weight:bold; color:var(--gold); }
+    .fd-card .fd-maturity { color:var(--success); }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-box fade-in" id="loginBox">
+    <div class="auth-logo"><i class="fas fa-fingerprint"></i></div>
+    <h2 style="margin-bottom:25px;color:#fff;">লগইন করুন</h2>
+    <input type="text" id="loginUser" class="auth-input" placeholder="ইউজার আইডি (বা admin1)">
+    <input type="password" id="loginPass" class="auth-input" placeholder="পাসওয়ার্ড">
+    <button class="auth-btn" onclick="handleLogin()">লগইন</button>
+    <div class="auth-switch" onclick="toggleAuth('register')">নতুন একাউন্ট খুলুন</div>
+  </div>
+  
+  <div class="auth-box fade-in" id="registerBox" style="display:none;">
+    <div class="auth-logo"><i class="fas fa-user-plus"></i></div>
+    <h2 style="margin-bottom:25px;color:#fff;">নতুন একাউন্ট</h2>
+    <input type="text" id="regName" class="auth-input" placeholder="পূর্ণ নাম">
+    <input type="text" id="regUser" class="auth-input" placeholder="ইউজার আইডি">
+    <input type="password" id="regPass" class="auth-input" placeholder="পাসওয়ার্ড">
+    <button class="auth-btn" style="background:linear-gradient(135deg,#FFD700,#FFA500);" onclick="handleRegister()">একাউন্ট তৈরি</button>
+    <div class="auth-switch" onclick="toggleAuth('login')">একাউন্ট আছে? লগইন করুন</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen">
+  <div class="header">
+    <h2><i class="fas fa-shield-alt"></i> Star Finance</h2>
+    <div class="user-chip" onclick="logout()"><i class="fas fa-sign-out-alt"></i> লগআউট</div>
+  </div>
+  
+  <div class="dashboard-container">
+
+        <!-- DASHBOARD -->
+    <div id="homeScreen" class="screen-transition">
+      <div class="balance-card">
+        <div style="font-size:15px;color:#e0e0e0;margin-bottom:5px;">মেইন ব্যালেন্স</div>
+        <div class="balance-amount">₹ <span id="walletBal">0</span></div>
+        <button class="btn-outline" style="margin-top:15px;width:auto;padding:10px 25px;background:rgba(0,0,0,0.3);color:#fff;" onclick="openAddMoneyModal()"><i class="fas fa-plus-circle"></i> টাকা যোগ করুন</button>
+      </div>
+      
+      <!-- CIBIL SCORE -->
+      <div class="civil-score-container">
+        <div class="civil-header">
+          <span><i class="fas fa-tachometer-alt" style="color:var(--gold);margin-right:8px;"></i> সিভিল স্কোর</span>
+          <span style="color:var(--gold);"><strong id="civilScoreDisplay">0</strong> / 500</span>
+        </div>
+        <div class="cibil-gauge-wrap">
+          <div class="cibil-gauge">
+            <svg viewBox="0 0 100 55">
+              <path class="track" d="M 10 50 A 40 40 0 0 1 90 50" />
+              <path class="progress" id="cibilArc" d="M 10 50 A 40 40 0 0 1 90 50" />
+            </svg>
+            <div class="score-text" id="cibilScoreText">0</div>
+            <div class="score-label" id="cibilScoreLabel">Poor</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-menu">
+        <div class="menu-card" onclick="openPage('loanPage')">
+            <div class="menu-icon"><i class="fas fa-hand-holding-usd"></i></div>
+            <h4>লোন সার্ভিস</h4>
+        </div>
+        <div class="menu-card" onclick="openPage('fdPage')">
+            <div class="menu-icon"><i class="fas fa-piggy-bank" style="color:var(--gold);"></i></div>
+            <h4>ফিক্সড ডিপোজিট</h4>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOAN PAGE -->
+    <div id="loanPage" class="page-screen">
+      <div class="page-header">
+        <button class="page-back" onclick="openPage('homeScreen')"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-file-invoice-dollar" style="color:var(--primary);"></i> লোন সিস্টেম</h3>
+      </div>
+      <div id="loanDynamicContent"><div style="text-align:center;padding:30px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div></div>
+    </div>
+
+    <!-- FD PAGE (NEW) -->
+    <div id="fdPage" class="page-screen">
+      <div class="page-header">
+        <button class="page-back" onclick="openPage('homeScreen')"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-piggy-bank" style="color:var(--gold);"></i> ফিক্সড ডিপোজিট</h3>
+      </div>
+      <div id="fdDynamicContent"><div style="text-align:center;padding:30px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div></div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="adminScreen" class="page-screen">
+      <div class="page-header" style="justify-content:center;">
+        <h3 style="color:var(--danger); font-size:26px;"><i class="fas fa-user-shield"></i> এডমিন ড্যাশবোর্ড</h3>
+      </div>
+      <div class="admin-grid">
+        <div class="admin-card" onclick="openAdminModal('wallet')">
+            <i class="fas fa-wallet" style="color:var(--primary);"></i><h4 style="font-size:14px;">ওয়ালেট অ্যাড</h4>
+        </div>
+        <div class="admin-card" onclick="openAdminModal('loan')">
+            <i class="fas fa-hand-holding-usd" style="color:var(--gold);"></i><h4 style="font-size:14px;">লোন রিকোয়েস্ট</h4>
+        </div>
+        <div class="admin-card" onclick="openAdminModal('loanRepay')">
+            <i class="fas fa-receipt" style="color:var(--success);"></i><h4 style="font-size:14px;">লোন রিপেমেন্ট</h4>
+        </div>      
+        <div class="admin-card" onclick="openAdminModal('fd')" style="grid-column: 1 / span 2;">
+            <i class="fas fa-piggy-bank" style="color:var(--gold);"></i><h4 style="font-size:14px;">FD রিকোয়েস্ট</h4>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD MONEY MODAL -->
+    <div id="addMoneyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+      <div class="fade-in" style="background:#151520; border:1px solid var(--primary); padding:30px 20px; border-radius:24px; width:90%; max-width:380px; text-align:center; box-shadow:0 20px 50px rgba(0,242,254,0.3); position:relative;">
+        <button class="close-modal" style="top:15px; right:15px;" onclick="document.getElementById('addMoneyModal').style.display='none'"><i class="fas fa-times"></i></button>
+        <h3 style="color:var(--primary); margin-bottom:10px; font-size:22px;"><i class="fas fa-wallet"></i> টাকা যুক্ত করুন</h3>
+        <p style="font-size:13px; color:#aaa; margin-bottom:20px;">কত টাকা অ্যাড করতে চান?</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:15px;">
+          <span class="quick-amount-card" style="padding:8px 16px; font-size:14px;" onclick="document.getElementById('addMoneyInput').value=100;this.style.background='var(--primary)'">₹100</span>
+          <span class="quick-amount-card" style="padding:8px 16px; font-size:14px;" onclick="document.getElementById('addMoneyInput').value=500;this.style.background='var(--primary)'">₹500</span>
+          <span class="quick-amount-card" style="padding:8px 16px; font-size:14px;" onclick="document.getElementById('addMoneyInput').value=1000;this.style.background='var(--primary)'">₹1000</span>
+          <span class="quick-amount-card" style="padding:8px 16px; font-size:14px;" onclick="document.getElementById('addMoneyInput').value=2000;this.style.background='var(--primary)'">₹2000</span>
+        </div>
+        <input type="number" id="addMoneyInput" class="auth-input" placeholder="অথবা নিজে লিখুন" style="text-align:center; font-size:18px;">
+        <button class="auth-btn" style="background:var(--success); color:#000; margin-top:10px;" onclick="initiateWalletUPI()"><i class="fas fa-paper-plane"></i> UPI দিয়ে পেমেন্ট করুন</button>
+      </div>
+    </div>
+
+    <div id="upiPaymentBox" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2500; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+      <div class="fade-in" style="background:#151520; border:1px solid var(--primary); padding:25px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); position:relative;">
+        <button class="close-modal" style="top:15px; right:15px;" onclick="document.getElementById('upiPaymentBox').style.display='none'"><i class="fas fa-times"></i></button>
+        <h3 style="color:var(--primary); margin-bottom:15px; text-align:center;"><i class="fas fa-qrcode"></i> পেমেন্ট কনফার্মেশন</h3>
+        <p style="text-align:center; font-size:13px; color:#ccc; margin-bottom:15px;">আপনার UPI অ্যাপে পেমেন্ট সম্পন্ন করে 12 ডিজিটের Transaction/UTR ID এখানে জমা দিন।</p>
+        <div class="upi-box">
+          <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:15px;">
+            <span style="color:#aaa;">পরিমাণ:</span>
+            <strong style="color:var(--success); font-size:18px;">₹<span id="upiAmountText">0</span></strong>
+          </div>
+          <hr style="border:0; border-top:1px solid #333; margin-bottom:15px;">
+          <label style="font-size:13px; color:#aaa; margin-bottom:5px; display:block;">Transaction / UTR ID (12 Digit)</label>
+          <input type="text" id="upiTxnId" placeholder="এখানে UTR আইডি লিখুন">
+        </div>
+        <button class="auth-btn" style="background:var(--success); color:#000; margin-top:10px;" onclick="submitUPIPayment()"><i class="fas fa-check-circle"></i> এডমিনকে রিকোয়েস্ট পাঠান</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADMIN MODAL -->
+<div id="adminModalOverlay" class="admin-modal-overlay">
+  <div class="admin-modal-box">
+    <button class="close-modal" onclick="closeAdminModal()"><i class="fas fa-times"></i></button>
+    <h3 id="adminModalTitle" style="color:var(--gold); margin-bottom:20px; text-align:center; border-bottom:1px solid #333; padding-bottom:15px; font-size:22px;">রিকোয়েস্ট তালিকা</h3>
+    <div id="adminModalBody">লোড হচ্ছে...</div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // Firebase Init
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQJTukRLYxJDLopHRkpwRnmfhUz1x3hHw",
+    authDomain: "star-loans-a1038.firebaseapp.com",
+    projectId: "star-loans-a1038",
+    storageBucket: "star-loans-a1038.firebasestorage.app",
+    messagingSenderId: "630019859941",
+    appId: "1:630019859941:web:c50b1b1a64ac69459fbb0c"
+  };
+  if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  let currentUserData = null;
+  let isAdmin = false;
+  let pendingUPIRequest = null;
+  let selectedFdDuration = 1;
+
+  function showToast(msg){ 
+      const t = document.getElementById('toast'); 
+      t.innerText = msg; t.style.display = 'block'; 
+      setTimeout(() => t.style.display = 'none', 3500); 
+  }
+  function toggleAuth(type){ 
+      document.getElementById('loginBox').style.display = type==='login'?'block':'none'; 
+      document.getElementById('registerBox').style.display = type==='register'?'block':'none'; 
+  }
+
+  function openPage(pageId){
+    document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+    const target = document.getElementById(pageId);
+    if(target){
+      target.style.display = 'block';
+      target.classList.add('screen-transition');
+      if(pageId === 'loanPage') renderLoanSection();
+      if(pageId === 'fdPage') renderFDSection();
+      if(pageId === 'supportPage') loadSupportChat();
+    }
+  }
+
+  async function handleRegister(){
+    const name = document.getElementById('regName').value.trim();
+    const user = document.getElementById('regUser').value.trim().toLowerCase();
+    const pass = document.getElementById('regPass').value.trim();
+    if(!name || !user || !pass) return showToast('সব তথ্য দিন');
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(user+'@starloans.com', pass);
+      await db.collection('users').doc(cred.user.uid).set({
+        fullname: name, username: user, wallet: 0, role: 'user',
+        loanKYC: { name:'', phone:'', altPhone:'', address:'', upiAc:'' },
+        cibilScore: 100, loanStatus: 'none', activeLoan: null,
+        fds: []  // Array of FD objects
+      });
+      showToast('একাউন্ট তৈরি সফল!');
+    } catch(e) { showToast('ত্রুটি: '+e.message); }
+  }
+
+  async function handleLogin(){
+    const user = document.getElementById('loginUser').value.trim().toLowerCase();
+    const pass = document.getElementById('loginPass').value.trim();
+    if(user === 'admin1' && pass === 'admin1234') {
+        isAdmin = true;
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        openPage('adminScreen'); return;
+    }
+    try { await auth.signInWithEmailAndPassword(user+'@starloans.com', pass); } 
+    catch(e) { showToast('ভুল আইডি অথবা পাসওয়ার্ড'); }
+  }
+
+  function logout(){ 
+      isAdmin = false; auth.signOut(); 
+      document.getElementById('authScreen').style.display = 'flex'; 
+      document.getElementById('appScreen').style.display = 'none';
+  }
+
+  auth.onAuthStateChanged(user => {
+    if(isAdmin) return;
+    if(user){
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      openPage('homeScreen');
+      db.collection('users').doc(user.uid).onSnapshot(doc => {
+        if(doc.exists){ currentUserData = doc.data(); currentUserData.uid = user.uid; updateUI(); }
+      });
+    } else { 
+        document.getElementById('authScreen').style.display = 'flex'; 
+        document.getElementById('appScreen').style.display = 'none'; 
+    }
+  });
+
+  function updateUI(){
+    if(!currentUserData) return;
+    document.getElementById('walletBal').innerText = parseFloat(currentUserData.wallet || 0).toFixed(2);
+    
+    let currentCibil = currentUserData.cibilScore || 100;
+    if(currentUserData.activeLoan && currentUserData.activeLoan.status === 'active'){
+        const dueDate = currentUserData.activeLoan.dueDate;
+        if(Date.now() > dueDate){
+            const msPerDay = 1000*60*60*24;
+            const daysLate = Math.floor((Date.now() - dueDate) / msPerDay);
+            if(daysLate > 0){
+                let newCibil = currentCibil - daysLate;
+                if(newCibil < 0) newCibil = 0;
+                let loanStatusUpdate = daysLate > 30 ? 'default' : 'active';
+                
+                let updates = { cibilScore: newCibil, 'activeLoan.status': loanStatusUpdate, 'activeLoan.daysLate': daysLate };
+                
+                if(daysLate >= 7 && !currentUserData.loanBlockedUntil) {
+                    let blockUntil = Date.now() + (30 * 24 * 60 * 60 * 1000);
+                    updates['loanBlockedUntil'] = blockUntil;
+                    currentUserData.loanBlockedUntil = blockUntil;
+                }
+                
+                db.collection('users').doc(currentUserData.uid).update(updates);
+                currentCibil = newCibil;
+            }
+        }
+    }
+    
+    document.getElementById('civilScoreDisplay').innerText = currentCibil;
+    updateCibilGauge(currentCibil);
+    
+    // Re-render FD if page is open
+    if(document.getElementById('fdPage').style.display === 'block') renderFDSection();
+    if(document.getElementById('loanPage').style.display === 'block') renderLoanSection();
+  }
+
+  function updateCibilGauge(score){
+    const max = 500; const clamped = Math.min(Math.max(score, 0), max);
+    const percent = clamped / max;
+    const offset = 125.6 - (percent * 125.6);
+    const arc = document.getElementById('cibilArc');
+    if(arc){
+      arc.style.strokeDashoffset = offset;
+      let color = '#ff4d4d'; let label = 'Poor';
+      if(clamped >= 400){ color = '#43e97b'; label = 'Excellent'; }
+      else if(clamped >= 250){ color = '#FFD700'; label = 'Good'; }
+      else if(clamped >= 150){ color = '#f39c12'; label = 'Average'; }
+      arc.style.stroke = color;
+      document.getElementById('cibilScoreText').innerText = clamped; 
+      document.getElementById('cibilScoreText').style.color = color;
+      document.getElementById('cibilScoreLabel').innerText = label; 
+      document.getElementById('cibilScoreLabel').style.color = color;
+    }
+  }
+
+  // UPI Logic
+  function openAddMoneyModal(){
+      document.getElementById('addMoneyInput').value = '';
+      document.getElementById('addMoneyModal').style.display = 'flex';
+  }
+  function initiateWalletUPI(){
+      const amount = parseFloat(document.getElementById('addMoneyInput').value);
+      if(!amount || amount < 10) return showToast('সঠিক পরিমাণ লিখুন (ন্যূনতম ₹10)');
+      document.getElementById('addMoneyModal').style.display = 'none';
+      openUPIIntent(amount, 'wallet');
+  }
+  function openUPIIntent(amount, requestType){
+      pendingUPIRequest = { type: requestType, amount: amount };
+      const upiID = "8391921082@ibl"; 
+      const intentUrl = `upi://pay?pa=${upiID}&pn=StarFinance&am=${amount}&cu=INR`;
+      window.location.href = intentUrl;
+      setTimeout(() => {
+          document.getElementById('upiAmountText').innerText = amount;
+          document.getElementById('upiTxnId').value = '';
+          document.getElementById('upiPaymentBox').style.display = 'flex';
+      }, 2000);
+  }
+  async function submitUPIPayment(){
+      const utr = document.getElementById('upiTxnId').value.trim();
+      if(utr.length < 10) return showToast('সঠিক 12-digit UTR আইডি দিন');
+      await db.collection('admin_requests').add({
+         uid: currentUserData.uid, name: currentUserData.fullname, amount: pendingUPIRequest.amount,
+         utr: utr, type: pendingUPIRequest.type, status: 'pending', timestamp: Date.now()
+      });
+      showToast('✅ পেমেন্ট রিকোয়েস্ট এডমিনকে পাঠানো হয়েছে!');
+      document.getElementById('upiPaymentBox').style.display = 'none';
+  }
+
+  function getLoanPlan(cibil, type){
+      let limit = 0; let interest = (type === 'weekly') ? 0.40 : 0.50;
+      if(cibil >= 410){ limit = 1000; interest = (type === 'weekly') ? 0.20 : 0.40; }
+      else if(cibil >= 310) limit = 800;
+      else if(cibil >= 210) limit = 600;
+      else if(cibil >= 170) limit = 400;
+      else if(cibil >= 140) limit = 300;
+      else if(cibil >= 120) limit = 200;
+      else if(cibil >= 80) limit = 100;
+      return { limit, interest };
+  }
+
+  function renderLoanSection(){
+    const container = document.getElementById('loanDynamicContent');
+    const data = currentUserData;
+    let status = data.loanStatus || 'none';
+    const cibil = data.cibilScore || 100;
+    const loan = data.activeLoan;
+    let html = '';
+
+    if (data.loanBlockedUntil) {
+        let leftBlockDays = Math.ceil((data.loanBlockedUntil - Date.now()) / (1000*60*60*24));
+        if (leftBlockDays > 0) {
+            container.innerHTML = `
+            <div style="background:linear-gradient(145deg, rgba(255,77,77,0.1), rgba(0,0,0,0.6)); padding:30px 20px; border-radius:18px; border:1px solid var(--danger); text-align:center; margin-top:20px;">
+              <i class="fas fa-user-lock fa-3x" style="color:var(--danger); margin-bottom:15px;"></i>
+              <h3 style="color:var(--danger); margin-bottom:10px;">লোন এক্সেস সাময়িক বন্ধ</h3>
+              <p style="color:#ddd; font-size:14px; line-height:1.6;">আপনি কিস্তি পরিশোধে ৭ দিনের বেশি দেরি করায় আপনার লোন সুবিধা আগামী <strong>${leftBlockDays}</strong> দিনের জন্য বন্ধ করা হয়েছে।</p>
+            </div>`;
+            return;
+        } else {
+            db.collection('users').doc(currentUserData.uid).update({ loanBlockedUntil: firebase.firestore.FieldValue.delete() });
+        }
+    }
+
+    if (status === 'rejected') {
+        let daysPassed = Math.floor((Date.now() - (data.loanRejectedDate || Date.now())) / (1000*60*60*24));
+        let daysLeft = 7 - daysPassed;
+        if (daysLeft > 0) {
+            container.innerHTML = `
+            <div style="background:linear-gradient(145deg, rgba(255,77,77,0.1), rgba(0,0,0,0.6)); padding:30px 20px; border-radius:18px; border:1px solid var(--danger); text-align:center; margin-top:20px;">
+              <i class="fas fa-times-circle fa-3x" style="color:var(--danger); margin-bottom:15px;"></i>
+              <h3 style="color:var(--danger); margin-bottom:10px;">আবেদন বাতিল করা হয়েছে</h3>
+              <p style="color:#ddd; font-size:14px; line-height:1.6;">আপনার পূর্ববর্তী লোনের আবেদনটি এডমিন কর্তৃক বাতিল করা হয়েছে। আপনি আবার <strong>${daysLeft}</strong> দিন পর আবেদন করতে পারবেন।</p>
+            </div>`;
+            return;
+        } else {
+            db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'kyc_done' });
+            status = 'kyc_done';
+        }
+    }
+
+    if(loan && (status === 'active' || loan.status === 'active' || loan.status === 'default')){
+      const due = loan.amount + (loan.amount * loan.interest);
+      const paid = loan.paid || 0;
+      const emi = (due / (loan.type === 'weekly' ? 4 : 3)); 
+      const daysLeft = Math.floor((loan.dueDate - Date.now())/(1000*60*60*24));
+      
+      let dueStatusHtml = '';
+      if(loan.status === 'default') { dueStatusHtml = `<span style="color:var(--danger);font-weight:bold;">Default (30+ দিন লেট)</span>`; } 
+      else if (daysLeft < 0) { dueStatusHtml = `<span style="color:var(--danger);font-weight:bold;">Due Day ${Math.abs(daysLeft)}</span>`; } 
+      else { dueStatusHtml = `<span>ডিউ: ${daysLeft} দিন বাকি</span>`; }
+
+      html += `
+        <div style="background:linear-gradient(145deg, rgba(0,242,254,0.1), rgba(0,0,0,0.6)); padding:25px; border-radius:18px; border:1px solid var(--primary); text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+          <i class="fas fa-file-invoice-dollar fa-3x" style="color:var(--primary); margin-bottom:15px;"></i>
+          <h3 style="color:var(--primary); margin-bottom:15px;">আপনার চলতি লোন</h3>
+          
+          <div style="display:flex;justify-content:space-between;margin:10px 0; background:rgba(0,0,0,0.4); padding:10px; border-radius:10px;">
+            <span style="color:#bbb;">সর্বমোট বাকি:</span>
+            <strong style="color:var(--danger); font-size:18px;">₹${(due - paid).toFixed(0)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin:10px 0;font-size:14px;color:#aaa; padding:5px;">
+            ${dueStatusHtml}
+            <span style="color:#fff;">কিস্তি: ₹${emi.toFixed(0)}</span>
+          </div>
+          <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
+              <button class="auth-btn" style="background:var(--success);color:#000;" onclick="repayFromWallet(${emi})"><i class="fas fa-wallet"></i> ওয়ালেট থেকে পরিশোধ</button>
+              <button class="auth-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#000;" onclick="openUPIIntent(${emi.toFixed(0)}, 'loanRepay')"><i class="fas fa-qrcode"></i> সরাসরি UPI দিয়ে পরিশোধ</button>
+          </div>
+        </div>
+      `;
+      container.innerHTML = html; return;
+    }
+
+    if(status === 'none' || (status !== 'kyc_done' && status !== 'pending')){
+      const k = data.loanKYC || {};
+      html += `
+        <div style="text-align:center;color:var(--gold);font-weight:bold;margin-bottom:10px; font-size:18px;">প্রোফাইল সম্পূর্ণ করুন (KYC)</div>
+        <p style="font-size:12px;color:#aaa;margin-bottom:15px;text-align:center;">এই তথ্যগুলো একবার দিলেই সেভ থাকবে</p>
+        <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #333;">
+            <input type="text" id="lName" class="auth-input" placeholder="পূর্ণ নাম" value="${k.name || ''}">
+            <input type="text" id="lPhone" class="auth-input" placeholder="ফোন নাম্বার" value="${k.phone || ''}">
+            <input type="text" id="lAltPhone" class="auth-input" placeholder="অন্য একটি ফোন নাম্বার" value="${k.altPhone || ''}">
+            <input type="text" id="lUpiAc" class="auth-input" placeholder="টাকা রিসিভ করার একাউন্ট বা UPI ID" value="${k.upiAc || ''}">
+            <input type="text" id="lAddress" class="auth-input" placeholder="সম্পূর্ণ ঠিকানা" value="${k.address || ''}">
+            <button class="auth-btn" style="background:var(--success); color:#000;" onclick="saveKYC()">সেভ করুন</button>
+        </div>
+      `;
+      container.innerHTML = html; return;
+    }
+
+    if(status === 'kyc_done'){
+      const weekly = getLoanPlan(cibil, 'weekly');
+      const monthly = getLoanPlan(cibil, 'monthly');
+      const maxLimit = Math.max(weekly.limit, monthly.limit);
+      
+      html += `
+        <div style="text-align:center;">
+          <h4 style="color:var(--primary); font-size:18px;"><i class="fas fa-check-circle"></i> লোন অফার</h4>
+          
+          <div class="loan-slider-container">
+            <label>লোনের পরিমাণ নির্বাচন করুন (সর্বোচ্চ ₹${maxLimit})</label>
+            <input type="range" min="100" max="${maxLimit}" value="${Math.min(maxLimit, 200)}" step="100" id="loanAmountSlider" oninput="updateLoanSliderDisplay(this.value)">
+            <div class="slider-values">
+              <span>₹100</span>
+              <span>₹${maxLimit}</span>
+            </div>
+            <div class="selected-amount">₹<span id="sliderAmountDisplay">${Math.min(maxLimit, 200)}</span></div>
+          </div>
+          
+          <div style="margin:20px 0; padding:20px; background:#111; border:1px solid #333; border-radius:15px; text-align:left;">
+              <h4 style="color:var(--gold);margin-bottom:10px;">Weekly (৪টি কিস্তি)</h4>
+              <p>লিমিট: ₹${weekly.limit} | ইন্টারেস্ট: ${weekly.interest*100}%</p>
+              <button class="btn-outline" ${weekly.limit===0?'disabled':''} onclick="reqLoanWithSlider('weekly',${weekly.interest})">সাপ্তাহিক লোন নিন</button>
+          </div>
+          <div style="margin:20px 0; padding:20px; background:#111; border:1px solid #333; border-radius:15px; text-align:left;">
+              <h4 style="color:var(--gold);margin-bottom:10px;">Monthly (৩ মাসের রিপেমেন্ট)</h4>
+              <p>লিমিট: ₹${monthly.limit} | ইন্টারেস্ট: ${monthly.interest*100}%</p>
+              <button class="btn-outline" ${monthly.limit===0?'disabled':''} onclick="reqLoanWithSlider('monthly',${monthly.interest})">মাসিক লোন নিন</button>
+          </div>
+        </div>
+      `;
+      container.innerHTML = html; 
+      
+      if(maxLimit > 0){
+        const slider = document.getElementById('loanAmountSlider');
+        if(slider) {
+          slider.value = Math.min(maxLimit, 200);
+          document.getElementById('sliderAmountDisplay').innerText = slider.value;
+        }
+      }
+      return;
+    }
+    
+    if(status === 'pending'){
+       container.innerHTML = `
+       <div style="background:linear-gradient(145deg, rgba(243,156,18,0.1), rgba(0,0,0,0.6)); padding:30px 20px; border-radius:18px; border:1px solid var(--warning); text-align:center; margin-top:20px;">
+          <i class="fas fa-hourglass-half fa-3x" style="color:var(--warning); margin-bottom:15px;"></i>
+          <h3 style="color:var(--warning); margin-bottom:10px;">বিচারাধীন অবস্থায় আছে</h3>
+          <p style="color:#ddd; font-size:14px; line-height:1.6;">আপনার লোনের আবেদনটি এডমিন প্যানেলে রিভিউ করা হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।</p>
+       </div>`;
+    }
+  }
+
+  function updateLoanSliderDisplay(value){
+    document.getElementById('sliderAmountDisplay').innerText = value;
+  }
+
+  async function reqLoanWithSlider(type, interest){
+    const slider = document.getElementById('loanAmountSlider');
+    if(!slider) return;
+    const amount = parseInt(slider.value);
+    if(amount < 100) return showToast('ন্যূনতম ১০০ টাকা লোন নেওয়া যাবে');
+    
+    if(!confirm(`আপনি কি নিশ্চিত যে আপনি ₹${amount} লোন নিতে চান?`)) return;
+    
+    await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+    await db.collection('admin_requests').add({
+       uid: currentUserData.uid, 
+       kyc: currentUserData.loanKYC,
+       amount: amount, type: 'loan', loanType: type, interest, status: 'pending', timestamp: Date.now()
+    });
+    showToast('আবেদন এডমিন প্যানেলে পাঠানো হয়েছে!'); renderLoanSection();
+  }
+
+  async function saveKYC(){
+      const kyc = {
+        name: document.getElementById('lName').value.trim(),
+        phone: document.getElementById('lPhone').value.trim(),
+        altPhone: document.getElementById('lAltPhone').value.trim(),
+        upiAc: document.getElementById('lUpiAc').value.trim(),
+        address: document.getElementById('lAddress').value.trim()
+      };
+      if(!kyc.name || !kyc.phone || !kyc.address || !kyc.upiAc) return showToast('সব প্রয়োজনীয় তথ্য দিন');
+      await db.collection('users').doc(currentUserData.uid).update({ loanKYC: kyc, loanStatus: 'kyc_done' });
+      showToast('প্রোফাইল সেভ হয়েছে!'); renderLoanSection();
+  }
+
+  async function repayFromWallet(emi){
+    if(!currentUserData.activeLoan) return;
+    if((currentUserData.wallet || 0) < emi) return showToast('ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই');
+    
+    const loan = currentUserData.activeLoan;
+    const due = loan.amount + (loan.amount * loan.interest);
+    const newPaid = (loan.paid || 0) + emi;
+    
+    let newCibil = Math.min((currentUserData.cibilScore || 100) + 20, 500);
+    let updates = { wallet: firebase.firestore.FieldValue.increment(-emi), 'activeLoan.paid': newPaid, cibilScore: newCibil };
+    
+    if(newPaid >= due){
+      updates['activeLoan'] = null; updates['loanStatus'] = 'kyc_done';
+      showToast('লোন সম্পূর্ণ পরিশোধ! সিভিল স্কোর +২০ বৃদ্ধি পেয়েছে');
+    } else {
+      showToast('কিস্তি জমা হয়েছে! সিভিল স্কোর +২০ বৃদ্ধি পেয়েছে');
+    }
+    await db.collection('users').doc(currentUserData.uid).update(updates);
+    updateUI();
+  }
+
+  // ------------------ FD SECTION (NEW) ------------------
+  function renderFDSection(){
+    const container = document.getElementById('fdDynamicContent');
+    const data = currentUserData;
+    let html = '';
+    
+    // Show existing FDs
+    const fds = data.fds || [];
+    if(fds.length > 0){
+      html += `<h4 style="color:var(--gold); margin-bottom:15px;">আপনার চলমান FD</h4>`;
+      fds.forEach((fd, index) => {
+        const isMatured = Date.now() > fd.maturityDate;
+        const maturityAmount = fd.amount + fd.interestEarned;
+        html += `
+          <div class="fd-card">
+            <div style="display:flex; justify-content:space-between;">
+              <span>পরিমাণ: <span class="fd-amount">₹${fd.amount}</span></span>
+              <span>মেয়াদ: ${fd.duration} মাস</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px;">
+              <span>সুদের হার: ${fd.interestRate}%</span>
+              <span class="fd-maturity">ম্যাচিউরিটিতে ₹${maturityAmount}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:13px; color:#aaa;">
+              <span>লক-ইন শেষ: ${new Date(fd.maturityDate).toLocaleDateString('bn-BD')}</span>
+              <span>${isMatured ? '✅ ম্যাচিউরড' : '⏳ চলমান'}</span>
+            </div>
+            ${isMatured ? `<button class="auth-btn" style="background:var(--success);color:#000;margin-top:10px;padding:10px;" onclick="withdrawFD(${index})"><i class="fas fa-hand-holding-usd"></i> টাকা তুলুন</button>` : 
+              `<button class="btn-outline" style="padding:10px;margin-top:10px;" onclick="breakFD(${index})"><i class="fas fa-unlock"></i> ভেঙ্গে ফেলুন (১০% চার্জ)</button>`}
+          </div>
+        `;
+      });
+    } else {
+      html += `<p style="text-align:center;color:#aaa;padding:20px;">আপনার কোনো FD নেই।</p>`;
+    }
+    
+    // New FD Form
+    html += `
+      <hr style="border:0; border-top:1px solid #333; margin:25px 0 20px;">
+      <h4 style="color:var(--gold); margin-bottom:15px;">নতুন FD খুলুন</h4>
+      <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px;">
+        <label style="color:#ddd; display:block; margin-bottom:8px;">পরিমাণ (₹১০০ - ₹১০০০)</label>
+        <input type="number" id="fdAmount" class="auth-input" placeholder="১০০ থেকে ১০০০" min="100" max="1000" value="100">
+        
+        <label style="color:#ddd; display:block; margin-bottom:8px; margin-top:15px;">মেয়াদ নির্বাচন করুন</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+          <div class="quick-amount-card" onclick="selectFdDuration(3)" id="fdDur3">৩ মাস</div>
+          <div class="quick-amount-card" onclick="selectFdDuration(6)" id="fdDur6">৬ মাস</div>
+          <div class="quick-amount-card" onclick="selectFdDuration(12)" id="fdDur12">১২ মাস</div>
+        </div>
+        <div style="background:#111; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>সুদের হার:</span>
+            <span id="fdInterestDisplay" style="color:var(--gold); font-weight:bold;">20%</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px;">
+            <span>ম্যাচিউরিটিতে পাবেন:</span>
+            <span id="fdMaturityDisplay" style="color:var(--success); font-weight:bold;">₹120</span>
+          </div>
+        </div>
+        <button class="auth-btn" style="background:var(--gold);color:#000;" onclick="createFD()"><i class="fas fa-plus-circle"></i> FD খুলুন</button>
+      </div>
+    `;
+    container.innerHTML = html;
+    
+    // Set default duration
+    selectFdDuration(3);
+  }
+
+  function selectFdDuration(months){
+    selectedFdDuration = months;
+    document.querySelectorAll('#fdDur3, #fdDur6, #fdDur12').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById('fdDur' + months);
+    if(el) el.classList.add('active');
+    updateFdPreview();
+  }
+
+  function updateFdPreview(){
+    const amount = parseInt(document.getElementById('fdAmount').value) || 0;
+    const months = selectedFdDuration || 3;
+    let interestRate = 0;
+    if(months === 3) interestRate = 20;
+    else if(months === 6) interestRate = 20; // 6 মাসে 120% (base 20% + 100% bonus) as per requirement: 100 -> 220 for 6 months
+    else if(months === 12) interestRate = 20; // 12 মাসে 240% (base 20% + 220% bonus) as per requirement: 100 -> 340 for 12 months
+    
+    // Actually as per user: 1 month = 20%, 3 months = 60% (100->160), 6 months = 120% (100->220), 12 months = 240% (100->340)
+    let totalInterest = 0;
+    if(months === 1) totalInterest = amount * 0.20;
+    else if(months === 3) totalInterest = amount * 0.60;
+    else if(months === 6) totalInterest = amount * 1.20;
+    else if(months === 12) totalInterest = amount * 2.40;
+    else totalInterest = amount * (months * 0.20); // fallback
+    
+    document.getElementById('fdInterestDisplay').innerText = (totalInterest / amount * 100).toFixed(0) + '%';
+    document.getElementById('fdMaturityDisplay').innerText = '₹' + (amount + totalInterest).toFixed(0);
+  }
+
+  // Listen to amount change
+  document.addEventListener('input', function(e) {
+    if(e.target && e.target.id === 'fdAmount') {
+      updateFdPreview();
+    }
+  });
+
+  async function createFD(){
+    const amount = parseInt(document.getElementById('fdAmount').value);
+    if(amount < 100 || amount > 1000) return showToast('পরিমাণ ১০০ থেকে ১০০০ টাকার মধ্যে হতে হবে');
+    if((currentUserData.wallet || 0) < amount) return showToast('ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই');
+    
+    const months = selectedFdDuration || 3;
+    let totalInterest = 0;
+    if(months === 1) totalInterest = amount * 0.20;
+    else if(months === 3) totalInterest = amount * 0.60;
+    else if(months === 6) totalInterest = amount * 1.20;
+    else if(months === 12) totalInterest = amount * 2.40;
+    else totalInterest = amount * (months * 0.20);
+    
+    const interestRate = (totalInterest / amount * 100);
+    const maturityDate = Date.now() + (months * 30 * 24 * 60 * 60 * 1000);
+    
+    const fdData = {
+      amount: amount,
+      duration: months,
+      interestRate: interestRate,
+      interestEarned: totalInterest,
+      startDate: Date.now(),
+      maturityDate: maturityDate,
+      status: 'active'
+    };
+    
+    // Deduct from wallet
+    await db.collection('users').doc(currentUserData.uid).update({
+      wallet: firebase.firestore.FieldValue.increment(-amount),
+      fds: firebase.firestore.FieldValue.arrayUnion(fdData)
+    });
+    showToast('FD সফলভাবে খোলা হয়েছে!');
+    renderFDSection();
+  }
+
+  async function withdrawFD(index){
+    const fds = currentUserData.fds || [];
+    if(index >= fds.length) return;
+    const fd = fds[index];
+    if(Date.now() < fd.maturityDate) return showToast('FD এখনও ম্যাচিউর হয়নি');
+    
+    const maturityAmount = fd.amount + fd.interestEarned;
+    // Remove FD and add to wallet
+    const newFds = fds.filter((_, i) => i !== index);
+    await db.collection('users').doc(currentUserData.uid).update({
+      wallet: firebase.firestore.FieldValue.increment(maturityAmount),
+      fds: newFds
+    });
+    showToast('₹' + maturityAmount + ' ওয়ালেটে যোগ করা হয়েছে!');
+    renderFDSection();
+  }
+
+  async function breakFD(index){
+    if(!confirm('আপনি কি FD ভেঙ্গে ফেলতে চান? ১০% চার্জ কেটে নেওয়া হবে।')) return;
+    const fds = currentUserData.fds || [];
+    if(index >= fds.length) return;
+    const fd = fds[index];
+    if(Date.now() >= fd.maturityDate) return showToast('FD ম্যাচিউরড, উইথড্র ব্যবহার করুন');
+    
+    const penalty = fd.amount * 0.10;
+    const refund = fd.amount - penalty;
+    const newFds = fds.filter((_, i) => i !== index);
+    await db.collection('users').doc(currentUserData.uid).update({
+      wallet: firebase.firestore.FieldValue.increment(refund),
+      fds: newFds
+    });
+    showToast('FD ভাঙ্গা হয়েছে। ₹' + refund + ' ওয়ালেটে ফেরত (১০% চার্জ কেটে)');
+    renderFDSection();
+  }
+
+  // --- SUPPORT CHAT ---
+  let supportUnsubscribe = null;
+
+  function sendSupportMessage(){
+      const txt = document.getElementById('chatInput').value.trim();
+      if(!txt) return;
+      
+      const msgData = { 
+        uid: currentUserData.uid, 
+        name: currentUserData.fullname, 
+        text: txt, 
+        sender: 'user', 
+        timestamp: Date.now(),
+        room: 'support'
+      };
+      
+      db.collection('support_chats').add(msgData);
+      document.getElementById('chatInput').value = '';
+  }
+
+  function loadSupportChat(){
+      if(supportUnsubscribe) supportUnsubscribe();
+      supportUnsubscribe = db.collection('support_chats')
+          .where('uid', '==', currentUserData.uid)
+          .orderBy('timestamp', 'asc')
+          .onSnapshot(snap => {
+              let html = '';
+              const msgs = [];
+              snap.forEach(doc => { msgs.push(doc.data()); });
+              
+              if(msgs.length === 0) {
+                  html = `<div class="msg-system">👋 স্বাগতম! আপনার প্রশ্ন লিখুন।</div>`;
+              } else {
+                  msgs.forEach(d => {
+                      const cls = d.sender === 'user' ? 'msg-user' : 'msg-admin';
+                      const time = new Date(d.timestamp).toLocaleTimeString('bn-BD', { hour:'2-digit', minute:'2-digit' });
+                      html += `<div class="msg-bubble ${cls}">${d.text}<span class="msg-time">${time}</span></div>`;
+                  });
+              }
+              const box = document.getElementById('liveChatBox');
+              box.innerHTML = html;
+              box.scrollTop = box.scrollHeight;
+          });
+  }
+
+  // --- ADMIN SECTION ---
+  let adminUnsubscribe = null;
+  let activeAdminChatUnsub = null;
+
+  function openAdminModal(type){
+    if(!isAdmin) return;
+    document.getElementById('adminModalOverlay').style.display = 'flex';
+    const body = document.getElementById('adminModalBody');
+    body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+    
+    if(adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
+    if(activeAdminChatUnsub) { activeAdminChatUnsub(); activeAdminChatUnsub = null; }
+
+    // Admin Chat List
+    if(type === 'support'){
+        document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-comments"></i> লাইভ চ্যাট রিকোয়েস্ট';
+        adminUnsubscribe = db.collection('support_chats')
+            .orderBy('timestamp', 'desc')
+            .onSnapshot(snap => {
+                let html = '';
+                const usersMap = {};
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    if(!usersMap[d.uid]) {
+                      usersMap[d.uid] = { name: d.name, latestMsg: d.text, time: d.timestamp, unread: d.sender==='user' };
+                    }
+                });
+                
+                for(const [uid, uData] of Object.entries(usersMap)){
+                  html += `
+                  <div class="admin-req-item" style="cursor:pointer; border-left:4px solid ${uData.unread?'var(--primary)':'#333'};" onclick="openAdminChat('${uid}', '${uData.name}')">
+                      <strong style="color:var(--gold);"><i class="fas fa-user-circle"></i> ${uData.name}</strong>
+                      <div style="margin-top:8px; color:#ddd; font-size:14px;">${uData.latestMsg}</div>
+                      <div style="font-size:11px; color:#666; margin-top:5px;">ক্লিক করে চ্যাট ওপেন করুন</div>
+                  </div>`;
+                }
+                body.innerHTML = html || '<div style="text-align:center;color:#aaa;">কোনো মেসেজ নেই</div>';
+            });
+        return;
+    }
+
+    const titleMap = { 'wallet':'ওয়ালেট পেমেন্ট', 'loan':'লোন রিকোয়েস্ট', 'loanRepay':'লোন রিপেমেন্ট', 'fd':'FD রিকোয়েস্ট' };
+    document.getElementById('adminModalTitle').innerText = titleMap[type] + ' তালিকা';
+    
+    // For FD, show all FD requests (approval not needed, just list)
+    if(type === 'fd'){
+        // FD is auto-created, just show all FDs for admin view
+        db.collection('users').get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const u = doc.data();
+                if(u.fds && u.fds.length > 0){
+                    u.fds.forEach((fd, idx) => {
+                        const isMatured = Date.now() > fd.maturityDate;
+                        html += `
+                        <div class="admin-req-item">
+                            <strong style="color:var(--gold);"><i class="fas fa-user"></i> ${u.fullname}</strong>
+                            <div>পরিমাণ: ₹${fd.amount} | মেয়াদ: ${fd.duration} মাস</div>
+                            <div>সুদ: ${fd.interestRate.toFixed(0)}% | ম্যাচিউরিটি: ₹${(fd.amount + fd.interestEarned).toFixed(0)}</div>
+                            <div style="font-size:12px; color:#aaa;">${isMatured ? '✅ ম্যাচিউরড' : '⏳ চলমান'} | শুরু: ${new Date(fd.startDate).toLocaleDateString()}</div>
+                        </div>`;
+                    });
+                }
+            });
+            body.innerHTML = html || '<div style="text-align:center;color:#aaa;">কোনো FD নেই</div>';
+        });
+        return;
+    }
+
+    db.collection('admin_requests').where('type','==',type).where('status','==','pending').get().then(snap => {
+        let html = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          let content = '';
+          if(type === 'loan' && d.kyc){
+              content = `<div style="background:#111; padding:15px; border-radius:10px; margin-bottom:10px; border:1px dashed #555; font-size:13px; color:#ddd; line-height:1.6;">
+                  <div style="color:var(--primary); font-weight:bold; font-size:15px; margin-bottom:5px;"><i class="fas fa-file-invoice"></i> লোন অ্যাপ্লিকেশন</div>
+                  <strong>নাম:</strong> ${d.kyc.name}<br><strong>ফোন:</strong> ${d.kyc.phone} | <strong>Alt Phone:</strong> ${d.kyc.altPhone || 'N/A'}<br>
+                  <strong>ঠিকানা:</strong> ${d.kyc.address}<br><strong>Payout:</strong> <span style="color:var(--success); font-weight:bold; font-size:14px; user-select:all;">${d.kyc.upiAc}</span><br>
+                  <strong>লোনের পরিমাণ:</strong> ₹${d.amount} (${d.loanType})
+              </div>`;
+          } else {
+              content = `<div style="margin-bottom:10px;">
+                  <strong>ইউজার:</strong> ${d.name}<br><strong>পরিমাণ:</strong> <span style="color:var(--success); font-size:16px; font-weight:bold;">₹${d.amount}</span><br>
+                  ${d.utr ? `<strong>UTR ID:</strong> <span style="color:var(--primary); user-select:all;">${d.utr}</span>` : ''}
+              </div>`;
+          }
+
+          html += `<div class="admin-req-item">
+            ${content}
+            <div class="actions">
+              <button class="btn-approve" onclick="adminApprove('${doc.id}','${d.uid}','${type}',${d.amount || 0},'${d.loanType || ''}',${d.interest || 0})">এপ্রুভ</button>
+              <button class="btn-reject" onclick="adminReject('${doc.id}', '${d.uid}', '${type}')">বাতিল</button>
+            </div>
+          </div>`;
+        });
+        body.innerHTML = html || '<div style="text-align:center;color:#aaa;">কোনো পেন্ডিং রিকোয়েস্ট নেই</div>';
+    });
+  }
+
+  function openAdminChat(uid, name) {
+      if(adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
+      document.getElementById('adminModalTitle').innerHTML = `<div class="admin-chat-header" onclick="openAdminModal('support')"><i class="fas fa-arrow-left"></i> ${name} এর মেসেজ</div>`;
+      
+      document.getElementById('adminModalBody').innerHTML = `
+          <div class="admin-chat-messages chat-box" id="adminChatBox" style="height:300px;">লোড হচ্ছে...</div>
+          <div class="chat-input-wrapper">
+              <input type="text" id="adminChatInput" placeholder="রিপ্লাই লিখুন...">
+              <button onclick="sendAdminMsg('${uid}')"><i class="fas fa-paper-plane"></i></button>
+          </div>
+      `;
+      
+      if(activeAdminChatUnsub) activeAdminChatUnsub();
+      activeAdminChatUnsub = db.collection('support_chats')
+          .where('uid', '==', uid)
+          .orderBy('timestamp', 'asc')
+          .onSnapshot(snap => {
+              let html = '';
+              snap.forEach(doc => {
+                  const d = doc.data();
+                  const cls = d.sender === 'admin' ? 'msg-user' : 'msg-admin';
+                  const senderName = d.sender === 'admin' ? 'আপনি' : d.name;
+                  html += `<div class="msg-bubble ${cls}">
+                      <strong style="font-size:11px; opacity:0.7; display:block; margin-bottom:3px;">${senderName}</strong>
+                      ${d.text}
+                  </div>`;
+              });
+              const box = document.getElementById('adminChatBox');
+              if(box) {
+                  box.innerHTML = html;
+                  box.scrollTop = box.scrollHeight;
+              }
+          });
+  }
+
+  async function sendAdminMsg(uid) {
+      const txt = document.getElementById('adminChatInput').value.trim();
+      if(!txt) return;
+      await db.collection('support_chats').add({ uid: uid, name: 'Admin', text: txt, sender: 'admin', timestamp: Date.now(), room: 'support' });
+      document.getElementById('adminChatInput').value = '';
+  }
+
+  async function adminApprove(docId, uid, type, amount, loanType, interest){
+      if(!confirm('আপনি কি নিশ্চিত?')) return;
+      try {
+          if(type === 'wallet'){
+              await db.collection('users').doc(uid).update({ wallet: firebase.firestore.FieldValue.increment(amount) });
+              showToast('ওয়ালেটে টাকা যোগ করা হয়েছে!');
+          }
+          else if(type === 'loan'){
+              const dueDate = Date.now() + (loanType === 'weekly' ? 7 : 30) * 24*60*60*1000;
+              await db.collection('users').doc(uid).update({ 
+                  loanStatus: 'active', 
+                  activeLoan: { amount, type: loanType, interest, paid: 0, dueDate, status:'active' }
+              });
+              showToast('লোন অ্যাপ্রুভ করা হয়েছে!');
+          }
+          else if(type === 'loanRepay'){
+              const udoc = await db.collection('users').doc(uid).get();
+              const u = udoc.data();
+              if(u.activeLoan){
+                  const due = u.activeLoan.amount + (u.activeLoan.amount * u.activeLoan.interest);
+                  const newPaid = (u.activeLoan.paid || 0) + amount;
+                  let newCibil = Math.min((u.cibilScore || 100) + 20, 500);
+                  if(newPaid >= due){
+                      await db.collection('users').doc(uid).update({ 'activeLoan': null, loanStatus: 'kyc_done', cibilScore: newCibil });
+                      showToast('লোন ক্লোজ করা হয়েছে');
+                  } else {
+                      await db.collection('users').doc(uid).update({ 'activeLoan.paid': newPaid, cibilScore: newCibil });
+                      showToast('কিস্তি এক্সেপ্ট করা হয়েছে');
+                  }
+              }
+          }
+          await db.collection('admin_requests').doc(docId).update({ status: 'approved' });
+          openAdminModal(type);
+      } catch(e) { showToast('এরর: '+e.message); }
+  }
+  
+  async function adminReject(docId, uid, type){
+      if(!confirm('রিকোয়েস্টটি বাতিল করতে চান?')) return;
+      try {
+          if(type === 'loan') {
+              await db.collection('users').doc(uid).update({ loanStatus: 'rejected', loanRejectedDate: Date.now() });
+          }
+          await db.collection('admin_requests').doc(docId).update({ status: 'rejected' });
+          openAdminModal(type);
+      } catch (e) { showToast('এরর: '+e.message); }
+  }
+
+  function closeAdminModal(){ 
+      if(adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
+      if(activeAdminChatUnsub) { activeAdminChatUnsub(); activeAdminChatUnsub = null; }
+      document.getElementById('adminModalOverlay').style.display='none'; 
+  }
+</script>
+  <!-- ========================================== -->
+<!-- CUSTOMER SUPPORT & FEEDBACK SYSTEM (START) -->
+<!-- ========================================== -->
+
+<style>
+  /* প্রফেশনাল ফ্লোটিং সাপোর্ট বাটন (FAB) */
+  .support-fab { position:fixed; bottom:25px; right:25px; background:linear-gradient(135deg, var(--primary-dark), var(--primary)); color:#000; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; box-shadow:0 8px 25px rgba(0,242,254,0.5); cursor:pointer; z-index:1500; transition:transform 0.3s; }
+  .support-fab:active { transform:scale(0.9); }
+  /* কাস্টম স্ক্রলবার হিস্ট্রির জন্য */
+  .history-scroll::-webkit-scrollbar { width:4px; }
+  .history-scroll::-webkit-scrollbar-track { background:rgba(0,0,0,0.2); }
+  .history-scroll::-webkit-scrollbar-thumb { background:var(--primary); border-radius:10px; }
+</style>
+
+<!-- Floating Action Button (ইউজারের স্ক্রিনে থাকবে) -->
+<div class="support-fab" id="supportFab" onclick="document.getElementById('supportModal').style.display='flex'">
+    <i class="fas fa-headset"></i>
+</div>
+
+<!-- SUPPORT MODAL (প্রধান সাপোর্ট পপ-আপ) -->
+<div id="supportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+  <div class="fade-in" style="background:#151520; border:1px solid var(--primary); padding:25px 20px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); position:relative; max-height:85vh; overflow-y:auto;">
+    <button class="close-modal" style="top:15px; right:15px;" onclick="document.getElementById('supportModal').style.display='none'"><i class="fas fa-times"></i></button>
+    
+    <h3 style="color:var(--gold); margin-bottom:10px; text-align:center; font-size:20px;"><i class="fas fa-headset"></i> হেল্পলাইন ও সাপোর্ট</h3>
+    <p style="font-size:12px; color:#aaa; margin-bottom:20px; text-align:center;">যেকোনো প্রয়োজনে আমাদের সাথে যোগাযোগ করুন</p>
+    
+    <!-- কল ও হোয়াটসঅ্যাপ বাটন -->
+    <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <div style="flex:1;">
+            <button class="auth-btn" style="background:#2980b9; color:#fff; padding:12px; font-size:14px; margin-bottom:10px;" onclick="document.getElementById('callOptions').style.display = document.getElementById('callOptions').style.display === 'block' ? 'none' : 'block'"><i class="fas fa-phone-alt"></i> কল করুন</button>
+            <div id="callOptions" style="display:none; background:#111; padding:10px; border-radius:10px; border:1px solid #333; text-align:center;">
+                <a href="tel:+919832255825" style="display:block; color:#fff; text-decoration:none; padding:8px 0; border-bottom:1px solid #222; font-size:14px;">+91 98322 55825</a>
+                <a href="tel:+919547246740" style="display:block; color:#fff; text-decoration:none; padding:8px 0; font-size:14px;">+91 95472 46740</a>
+            </div>
+        </div>
+        <div style="flex:1;">
+            <button class="auth-btn" style="background:#27ae60; color:#fff; padding:12px; font-size:14px; margin-bottom:10px;" onclick="document.getElementById('waOptions').style.display = document.getElementById('waOptions').style.display === 'block' ? 'none' : 'block'"><i class="fab fa-whatsapp"></i> হোয়াটসঅ্যাপ</button>
+            <div id="waOptions" style="display:none; background:#111; padding:10px; border-radius:10px; border:1px solid #333; text-align:center;">
+                <a href="https://wa.me/919832255825" target="_blank" style="display:block; color:#fff; text-decoration:none; padding:8px 0; border-bottom:1px solid #222; font-size:14px;">+91 98322 55825</a>
+                <a href="https://wa.me/919547246740" target="_blank" style="display:block; color:#fff; text-decoration:none; padding:8px 0; font-size:14px;">+91 95472 46740</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ফিডব্যাক ফর্ম -->
+    <div style="background:rgba(0,0,0,0.5); padding:15px; border-radius:15px; border:1px dashed #444; margin-top:15px; text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h4 style="color:var(--primary); font-size:14px; margin:0;"><i class="fas fa-comment-dots"></i> মেসেজ পাঠান</h4>
+            <button class="btn-outline" style="padding:6px 10px; margin:0; width:auto; font-size:12px; border-radius:8px;" onclick="document.getElementById('userHistoryModal').style.display='flex'"><i class="fas fa-history"></i> হিস্ট্রি</button>
+        </div>
+        <textarea id="feedbackText" placeholder="আপনার সমস্যা বা প্রশ্ন বিস্তারিত লিখুন..." style="width:100%; height:80px; background:#0a0a0f; border:1px solid #333; color:#fff; padding:10px; border-radius:10px; outline:none; resize:none; font-size:13px; margin-bottom:10px;"></textarea>
+        <button class="auth-btn" style="padding:10px; font-size:14px;" onclick="submitFeedback()"><i class="fas fa-paper-plane"></i> এডমিনকে পাঠান</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER HISTORY MODAL (ইউজারের হিস্ট্রি পপ-আপ) -->
+<div id="userHistoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:3500; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+  <div class="fade-in" style="background:#151520; border:1px solid var(--primary); padding:25px 20px; border-radius:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); position:relative; max-height:85vh; display:flex; flex-direction:column;">
+    <button class="close-modal" style="top:15px; right:15px;" onclick="document.getElementById('userHistoryModal').style.display='none'"><i class="fas fa-times"></i></button>
+    <h3 style="color:var(--primary); margin-bottom:20px; text-align:center; font-size:18px; border-bottom:1px solid #333; padding-bottom:15px;"><i class="fas fa-history"></i> আপনার ফিডব্যাক হিস্ট্রি</h3>
+    
+    <div id="userHistoryBody" class="history-scroll" style="text-align:left; overflow-y:auto; padding-right:5px; flex:1;">
+        <!-- ডাইনামিক হিস্ট্রি এখানে লোড হবে -->
+    </div>
+  </div>
+</div>
+
+<!-- Admin Feedback Modal -->
+<div id="adminFeedbackModal" class="admin-modal-overlay">
+  <div class="admin-modal-box">
+    <button class="close-modal" onclick="document.getElementById('adminFeedbackModal').style.display='none'"><i class="fas fa-times"></i></button>
+    <h3 style="color:var(--gold); margin-bottom:20px; text-align:center; border-bottom:1px solid #333; padding-bottom:15px; font-size:20px;"><i class="fas fa-clipboard-list"></i> রিপোর্ট ও ফিডব্যাক</h3>
+    <div id="adminFeedbackBody">লোড হচ্ছে...</div>
+  </div>
+</div>
+
+<script>
+  // 1. অটোমেটিক এডমিন ড্যাশবোর্ডে রিপোর্ট বাটন যুক্ত করা
+  document.addEventListener("DOMContentLoaded", () => {
+      const adminGrid = document.querySelector('.admin-grid');
+      if (adminGrid) {
+          adminGrid.insertAdjacentHTML('beforeend', `
+            <div class="admin-card" onclick="openAdminFeedbacks()" style="grid-column: 1 / span 2;">
+                <i class="fas fa-envelope-open-text" style="color:#b2d942;"></i><h4 style="font-size:14px;">রিপোর্ট ও ফিডব্যাক</h4>
+            </div>
+          `);
+      }
+      
+      auth.onAuthStateChanged(user => {
+          if(isAdmin) {
+              const fab = document.getElementById('supportFab');
+              if(fab) fab.style.display = 'none';
+          }
+      });
+  });
+
+  // 2. ইউজারের ফিডব্যাক ডেটাবেসে পাঠানো
+  async function submitFeedback() {
+      const text = document.getElementById('feedbackText').value.trim();
+      if(!text) return showToast('দয়া করে বক্সে আপনার সমস্যাটি লিখুন');
+      if(!currentUserData) return showToast('লগইন প্রয়োজন');
+
+      try {
+          await db.collection('feedbacks').add({
+              uid: currentUserData.uid,
+              name: currentUserData.fullname,
+              phone: currentUserData.username, 
+              message: text,
+              reply: '', 
+              status: 'pending', 
+              timestamp: Date.now()
+          });
+          document.getElementById('feedbackText').value = '';
+          showToast('✅ আপনার মেসেজ এডমিনকে পাঠানো হয়েছে!');
+      } catch(e) { showToast('সমস্যা হয়েছে: ' + e.message); }
+  }
+
+  // 3. ডেটাবেস থেকে ডিলিট করার ফাংশন (উভয়ের জন্য)
+  async function deleteFeedback(docId) {
+      if(!confirm('আপনি কি এই মেসেজটি ডিলিট করতে চান?')) return;
+      try {
+          await db.collection('feedbacks').doc(docId).delete();
+          showToast('ডিলিট করা হয়েছে 🗑️');
+      } catch(e) { showToast('এরর: ' + e.message); }
+  }
+
+  // 4. ইউজারের স্ক্রিনে (নতুন পপ-আপে) ফিডব্যাকের হিস্ট্রি দেখানো
+  auth.onAuthStateChanged(user => {
+      if(user && !isAdmin) {
+          db.collection('feedbacks').where('uid', '==', user.uid).orderBy('timestamp', 'desc').onSnapshot(snap => {
+              let html = '';
+              if(snap.empty) {
+                  html = '<p style="text-align:center; color:#aaa; font-size:13px; margin-top:20px;">কোনো হিস্ট্রি নেই</p>';
+              } else {
+                  snap.forEach(doc => {
+                      const d = doc.data();
+                      const date = new Date(d.timestamp).toLocaleDateString('bn-BD');
+                      const isSolved = d.status === 'solved';
+                      html += `
+                      <div style="background:#111; padding:15px; border-radius:12px; border-left:4px solid ${isSolved ? 'var(--success)' : 'var(--warning)'}; margin-bottom:15px; font-size:13px; position:relative; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+                          <button onclick="deleteFeedback('${doc.id}')" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash-alt"></i></button>
+                          
+                          <div style="color:#ddd; margin-bottom:10px; padding-right:25px;"><strong>আপনার প্রশ্ন:</strong><br><span style="color:#fff;">${d.message}</span></div>
+                          ${d.reply ? `<div style="background:rgba(67, 233, 123, 0.1); padding:10px; border-radius:8px; margin-bottom:10px; color:var(--success);"><strong>এডমিনের উত্তর:</strong><br>${d.reply}</div>` : ''}
+                          
+                          <div style="display:flex; justify-content:space-between; color:#aaa; font-size:11px; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
+                              <span>${date}</span>
+                              <span style="color:${isSolved ? 'var(--success)' : 'var(--warning)'}; font-weight:bold;">
+                                  ${isSolved ? '<i class="fas fa-check-circle"></i> সমাধান হয়েছে' : '<i class="fas fa-clock"></i> পেন্ডিং আছে'}
+                              </span>
+                          </div>
+                      </div>`;
+                  });
+              }
+              const historyBody = document.getElementById('userHistoryBody');
+              if(historyBody) historyBody.innerHTML = html;
+          });
+      }
+  });
+
+  // 5. এডমিন প্যানেলে ফিডব্যাক মডেল ওপেন করা
+  function openAdminFeedbacks() {
+      if(!isAdmin) return;
+      document.getElementById('adminFeedbackModal').style.display = 'flex';
+      const body = document.getElementById('adminFeedbackBody');
+      body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+      db.collection('feedbacks').orderBy('timestamp', 'desc').onSnapshot(snap => {
+          let html = '';
+          snap.forEach(doc => {
+              const d = doc.data();
+              const isSolved = d.status === 'solved';
+              const date = new Date(d.timestamp).toLocaleString('bn-BD', {hour12:true, month:'short', day:'numeric'});
+              
+              html += `
+              <div class="admin-req-item" style="border-left:4px solid ${isSolved ? 'var(--success)' : 'var(--warning)'}; position:relative;">
+                  <button onclick="deleteFeedback('${doc.id}')" style="position:absolute; top:15px; right:15px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px;"><i class="fas fa-trash-alt"></i></button>
+                  
+                  <strong style="color:var(--gold); padding-right:30px; display:block;"><i class="fas fa-user-circle"></i> ${d.name} (${d.phone})</strong>
+                  <div style="margin:10px 0; color:#ddd; font-size:14px; background:#0a0a0f; padding:10px; border-radius:8px; border:1px solid #333;">${d.message}</div>
+                  
+                  ${d.reply ? `<div style="margin:10px 0; color:var(--success); font-size:13px; background:rgba(67, 233, 123, 0.1); padding:10px; border-radius:8px; border:1px solid var(--success);"><strong>আপনার রিপ্লাই:</strong> ${d.reply}</div>` : ''}
+
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <span style="font-size:11px; color:#aaa;">${date}</span>
+                      ${isSolved ? 
+                          `<span style="color:var(--success); font-size:13px; font-weight:bold;"><i class="fas fa-check-double"></i> সলভড</span>` : 
+                          `<button class="auth-btn" style="background:var(--success); color:#000; padding:6px 12px; font-size:12px; width:auto;" onclick="toggleReplyBox('${doc.id}')"><i class="fas fa-reply"></i> রিপ্লাই দিন</button>`
+                      }
+                  </div>
+
+                  <!-- Reply Box -->
+                  <div id="replyBox_${doc.id}" style="display:none; margin-top:12px; border-top:1px dashed #444; padding-top:12px;">
+                      <textarea id="replyInput_${doc.id}" placeholder="ইউজারকে সমাধান বা উত্তর লিখুন..." style="width:100%; height:60px; background:#0a0a0f; border:1px solid var(--success); color:#fff; padding:10px; border-radius:8px; outline:none; resize:none; font-size:13px; margin-bottom:10px;"></textarea>
+                      <button class="auth-btn" style="background:var(--primary); color:#000; padding:10px; font-size:13px;" onclick="submitFeedbackReply('${doc.id}')"><i class="fas fa-paper-plane"></i> রিপ্লাই সাবমিট করুন</button>
+                  </div>
+              </div>`;
+          });
+          body.innerHTML = html || '<div style="text-align:center;color:#aaa;">কোনো রিপোর্ট বা ফিডব্যাক নেই</div>';
+      });
+  }
+
+  // 6. এডমিনের রিপ্লাই বক্স টগল করা
+  function toggleReplyBox(docId) {
+      const box = document.getElementById('replyBox_' + docId);
+      if(box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // 7. এডমিন কর্তৃক রিপ্লাই সাবমিট ও সলভড মার্ক করা
+  async function submitFeedbackReply(docId) {
+      const replyInput = document.getElementById('replyInput_' + docId);
+      const replyText = replyInput ? replyInput.value.trim() : '';
+      if(!replyText) return showToast('দয়া করে রিপ্লাই লিখুন');
+
+      try {
+          await db.collection('feedbacks').doc(docId).update({ 
+              status: 'solved', 
+              reply: replyText 
+          });
+          showToast('রিপ্লাই পাঠানো হয়েছে এবং সলভড মার্ক করা হয়েছে!');
+      } catch(e) { showToast('এরর: ' + e.message); }
+  }
+</script>
+<!-- ========================================== -->
+<!--  CUSTOMER SUPPORT & FEEDBACK SYSTEM (END)  -->
+<!-- ========================================== -->
+  <!-- ========================================== -->
+<!--       UPDATED USER PROFILE SYSTEM          -->
+<!-- ========================================== -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+      // ১. হেডার সেকশনে লগআউটের বামে প্রোফাইল বাটন যুক্ত করা
+      const header = document.querySelector('.header');
+      if (header) {
+          header.insertAdjacentHTML('beforeend', `
+            <div style="display:flex; gap:10px;">
+                <div class="user-chip" onclick="openProfilePage()" style="background:rgba(255,255,255,0.05); border:1px solid #444; border-radius:30px; padding:8px 12px; font-size:12px; display:flex; align-items:center; gap:6px;">
+                   <i class="fas fa-user-circle" style="color:var(--primary);"></i> My Profile
+                </div>
+            </div>
+          `);
+      }
+
+      // ২. প্রোফাইল পেজের HTML বডিতে যুক্ত করা
+      const appScreen = document.getElementById('appScreen');
+      if (appScreen) {
+          appScreen.insertAdjacentHTML('beforeend', `
+            <div id="profilePage" class="page-screen">
+              <div class="page-header">
+                <button class="page-back" onclick="openPage('homeScreen')"><i class="fas fa-arrow-left"></i></button>
+                <h3><i class="fas fa-user-circle" style="color:var(--success);"></i> Profile Details</h3>
+              </div>
+              <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #333;">
+                  <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">Full Name</label>
+                  <input type="text" id="pName" class="auth-input" placeholder="Enter your name">
+                  
+                  <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">Phone Number</label>
+                  <input type="text" id="pPhone" class="auth-input" placeholder="Phone number">
+                  
+                  <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">Alternative Phone (Optional)</label>
+                  <input type="text" id="pAltPhone" class="auth-input" placeholder="Alternative number">
+                  
+                  <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">UPI ID / Account</label>
+                  <input type="text" id="pUpiAc" class="auth-input" placeholder="UPI ID or Account">
+                  
+                  <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">Address</label>
+                  <input type="text" id="pAddress" class="auth-input" placeholder="Full address">
+                  
+                  <button class="auth-btn" style="background:var(--success); color:#000; margin-top:10px;" onclick="updateProfile()"><i class="fas fa-save"></i> Save & Update</button>
+              </div>
+            </div>
+          `);
+      }
+  });
+
+  // ৩. প্রোফাইল পেজ ওপেন করা
+  function openProfilePage() {
+      if (!currentUserData) return showToast('Please login first');
+      const k = currentUserData.loanKYC || {};
+      document.getElementById('pName').value = k.name || currentUserData.fullname || '';
+      document.getElementById('pPhone').value = k.phone || '';
+      document.getElementById('pAltPhone').value = k.altPhone || '';
+      document.getElementById('pUpiAc').value = k.upiAc || '';
+      document.getElementById('pAddress').value = k.address || '';
+      openPage('profilePage');
+  }
+
+  // ৪. প্রোফাইল আপডেট করা
+  async function updateProfile() {
+      if(!currentUserData) return showToast('Login required');
+      const kyc = {
+        name: document.getElementById('pName').value.trim(),
+        phone: document.getElementById('pPhone').value.trim(),
+        altPhone: document.getElementById('pAltPhone').value.trim(),
+        upiAc: document.getElementById('pUpiAc').value.trim(),
+        address: document.getElementById('pAddress').value.trim()
+      };
+      if(!kyc.name || !kyc.phone || !kyc.address || !kyc.upiAc) return showToast('Please fill all fields');
+      try {
+          let updates = { loanKYC: kyc };
+          if(currentUserData.loanStatus === 'none') updates.loanStatus = 'kyc_done';
+          await db.collection('users').doc(currentUserData.uid).update(updates);
+          showToast('✅ Profile Updated Successfully!');
+          openPage('homeScreen');
+      } catch(e) { showToast('Error: ' + e.message); }
+  }
+</script>
+</body>
+</html>
