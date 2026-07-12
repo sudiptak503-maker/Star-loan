@@ -1205,21 +1205,28 @@
       } catch(e) { showToast('এরর: ' + e.message); }
   }
 
-  // 4. ইউজারের স্ক্রিনে (নতুন পপ-আপে) ফিডব্যাকের হিস্ট্রি দেখানো
+  // 4. ইউজারের স্ক্রিনে (নতুন পপ-আপে) ফিডব্যাকের হিস্ট্রি দেখানো (শর্টকাট ফিক্স)
   auth.onAuthStateChanged(user => {
       if(user && !isAdmin) {
-          db.collection('feedbacks').where('uid', '==', user.uid).orderBy('timestamp', 'desc').onSnapshot(snap => {
+          // orderBy বাদ দেওয়া হয়েছে যাতে ইনডেক্স এরর না আসে
+          db.collection('feedbacks').where('uid', '==', user.uid).onSnapshot(snap => {
               let html = '';
               if(snap.empty) {
                   html = '<p style="text-align:center; color:#aaa; font-size:13px; margin-top:20px;">কোনো হিস্ট্রি নেই</p>';
               } else {
-                  snap.forEach(doc => {
-                      const d = doc.data();
+                  // জাভাস্ক্রিপ্ট দিয়ে সর্ট করা হচ্ছে (নতুন মেসেজ উপরে রাখতে)
+                  let msgs = [];
+                  snap.forEach(doc => msgs.push({ id: doc.id, data: doc.data() }));
+                  msgs.sort((a, b) => b.data.timestamp - a.data.timestamp);
+
+                  msgs.forEach(item => {
+                      const d = item.data;
+                      const docId = item.id;
                       const date = new Date(d.timestamp).toLocaleDateString('bn-BD');
                       const isSolved = d.status === 'solved';
                       html += `
                       <div style="background:#111; padding:15px; border-radius:12px; border-left:4px solid ${isSolved ? 'var(--success)' : 'var(--warning)'}; margin-bottom:15px; font-size:13px; position:relative; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
-                          <button onclick="deleteFeedback('${doc.id}')" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash-alt"></i></button>
+                          <button onclick="deleteFeedback('${docId}')" style="position:absolute; top:12px; right:12px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash-alt"></i></button>
                           
                           <div style="color:#ddd; margin-bottom:10px; padding-right:25px;"><strong>আপনার প্রশ্ন:</strong><br><span style="color:#fff;">${d.message}</span></div>
                           ${d.reply ? `<div style="background:rgba(67, 233, 123, 0.1); padding:10px; border-radius:8px; margin-bottom:10px; color:var(--success);"><strong>এডমিনের উত্তর:</strong><br>${d.reply}</div>` : ''}
