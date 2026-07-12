@@ -1386,5 +1386,229 @@
       } catch(e) { showToast('Error: ' + e.message); }
   }
 </script>
+  <!-- ========================================== -->
+<!--      শুধুমাত্র নির্দিষ্ট ইভেন্টে বাফার     -->
+<!-- ========================================== -->
+
+<style>
+  .buffer-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+    z-index: 99999;
+  }
+  .buffer-overlay.active { display: flex; }
+  .buffer-spinner {
+    width: 45px; height: 45px;
+    border: 4px solid rgba(255,255,255,0.1);
+    border-top: 4px solid #00f2fe;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .buffer-text {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+</style>
+
+<div class="buffer-overlay" id="bufferOverlay">
+  <div class="buffer-spinner"></div>
+  <div class="buffer-text" id="bufferText">প্রক্রিয়াকরণ...</div>
+</div>
+
+<script>
+// ===== বাফার কন্ট্রোলার =====
+const Buffer = {
+  show(msg = 'প্রক্রিয়াকরণ...') {
+    document.getElementById('bufferText').textContent = msg;
+    document.getElementById('bufferOverlay').classList.add('active');
+  },
+  hide() {
+    document.getElementById('bufferOverlay').classList.remove('active');
+  }
+};
+
+// ==========================================
+//  অরিজিনাল ফাংশনগুলো ওভাররাইড (শুধু বাফার যোগ)
+// ==========================================
+
+// ১. লগইন
+const _origLogin = window.handleLogin;
+window.handleLogin = async function() {
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value.trim();
+  
+  if (user === 'admin1' && pass === 'admin1234') {
+    Buffer.show('এডমিন লগইন...');
+    setTimeout(() => {
+      isAdmin = true;
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      openPage('adminScreen');
+      Buffer.hide();
+    }, 600);
+    return;
+  }
+  
+  Buffer.show('লগইন হচ্ছে...');
+  try {
+    await auth.signInWithEmailAndPassword(user + '@starloans.com', pass);
+    Buffer.hide();
+  } catch(e) {
+    Buffer.hide();
+    showToast('ভুল আইডি অথবা পাসওয়ার্ড');
+  }
+};
+
+// ২. লোন পেজ ওপেন (লোন ক্লিক)
+const _origOpenPage = window.openPage;
+window.openPage = function(pageId) {
+  if (pageId === 'loanPage' || pageId === 'fdPage') {
+    Buffer.show(pageId === 'loanPage' ? 'লোন লোড হচ্ছে...' : 'FD লোড হচ্ছে...');
+    setTimeout(() => {
+      document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+      const target = document.getElementById(pageId);
+      if (target) {
+        target.style.display = 'block';
+        target.classList.add('screen-transition');
+        if (pageId === 'loanPage') renderLoanSection();
+        if (pageId === 'fdPage') renderFDSection();
+      }
+      Buffer.hide();
+    }, 500);
+  } else {
+    // বাকি পেজ নরমালি ওপেন
+    document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+    const target = document.getElementById(pageId);
+    if (target) {
+      target.style.display = 'block';
+      target.classList.add('screen-transition');
+    }
+  }
+};
+
+// ৩. কাস্টমার সাপোর্ট (ফ্যাব বাটন)
+const _origSupportOpen = document.querySelector('.support-fab')?.onclick;
+document.querySelector('.support-fab')?.addEventListener('click', function(e) {
+  Buffer.show('সাপোর্ট লোড হচ্ছে...');
+  setTimeout(() => {
+    document.getElementById('supportModal').style.display = 'flex';
+    Buffer.hide();
+  }, 400);
+});
+
+// ৪. লোন রিকোয়েস্ট (স্লাইডার দিয়ে)
+const _origReqLoan = window.reqLoanWithSlider;
+window.reqLoanWithSlider = async function(type, interest) {
+  const slider = document.getElementById('loanAmountSlider');
+  if (!slider) return;
+  const amount = parseInt(slider.value);
+  if (amount < 100) return showToast('ন্যূনতম ১০০ টাকা লোন নেওয়া যাবে');
+  if (!confirm(`আপনি কি নিশ্চিত যে আপনি ₹${amount} লোন নিতে চান?`)) return;
+  
+  Buffer.show('লোন আবেদন পাঠানো হচ্ছে...');
+  try {
+    await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+    await db.collection('admin_requests').add({
+      uid: currentUserData.uid,
+      kyc: currentUserData.loanKYC,
+      amount, type: 'loan', loanType: type, interest, status: 'pending', timestamp: Date.now()
+    });
+    Buffer.hide();
+    showToast('আবেদন এডমিন প্যানেলে পাঠানো হয়েছে!');
+    renderLoanSection();
+  } catch(e) {
+    Buffer.hide();
+    showToast('ত্রুটি: ' + e.message);
+  }
+};
+
+// ৫. FD তৈরি
+const _origCreateFD = window.createFD;
+window.createFD = async function() {
+  const amount = parseInt(document.getElementById('fdAmount').value);
+  if (amount < 100 || amount > 1000) return showToast('পরিমাণ ১০০ থেকে ১০০০ টাকার মধ্যে হতে হবে');
+  if ((currentUserData.wallet || 0) < amount) return showToast('ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই');
+  
+  const months = selectedFdDuration || 3;
+  let totalInterest = 0;
+  if (months === 1) totalInterest = amount * 0.20;
+  else if (months === 3) totalInterest = amount * 0.60;
+  else if (months === 6) totalInterest = amount * 1.20;
+  else if (months === 12) totalInterest = amount * 2.40;
+  else totalInterest = amount * (months * 0.20);
+  
+  const fdData = {
+    amount, duration: months,
+    interestRate: (totalInterest / amount * 100),
+    interestEarned: totalInterest,
+    startDate: Date.now(),
+    maturityDate: Date.now() + (months * 30 * 24 * 60 * 60 * 1000),
+    status: 'active'
+  };
+  
+  Buffer.show('FD খোলা হচ্ছে...');
+  try {
+    await db.collection('users').doc(currentUserData.uid).update({
+      wallet: firebase.firestore.FieldValue.increment(-amount),
+      fds: firebase.firestore.FieldValue.arrayUnion(fdData)
+    });
+    Buffer.hide();
+    showToast('FD সফলভাবে খোলা হয়েছে!');
+    renderFDSection();
+  } catch(e) {
+    Buffer.hide();
+    showToast('ত্রুটি: ' + e.message);
+  }
+};
+
+// ৬. রেজিস্টার
+const _origRegister = window.handleRegister;
+window.handleRegister = async function() {
+  const name = document.getElementById('regName').value.trim();
+  const user = document.getElementById('regUser').value.trim().toLowerCase();
+  const pass = document.getElementById('regPass').value.trim();
+  if (!name || !user || !pass) return showToast('সব তথ্য দিন');
+  
+  Buffer.show('একাউন্ট তৈরি হচ্ছে...');
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(user + '@starloans.com', pass);
+    await db.collection('users').doc(cred.user.uid).set({
+      fullname: name, username: user, wallet: 0, role: 'user',
+      loanKYC: { name: '', phone: '', altPhone: '', address: '', upiAc: '' },
+      cibilScore: 100, loanStatus: 'none', activeLoan: null, fds: []
+    });
+    Buffer.hide();
+    showToast('একাউন্ট তৈরি সফল!');
+  } catch(e) {
+    Buffer.hide();
+    showToast('ত্রুটি: ' + e.message);
+  }
+};
+
+// ৭. লগআউট
+const _origLogout = window.logout;
+window.logout = function() {
+  Buffer.show('লগআউট হচ্ছে...');
+  setTimeout(() => {
+    isAdmin = false;
+    auth.signOut();
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+    Buffer.hide();
+  }, 500);
+};
+
+console.log('✅ বাফার সিস্টেম অ্যাক্টিভেটেড! (শুধু লগইন, লোন, FD, সাপোর্টে)');
+</script>
 </body>
 </html>
