@@ -11,6 +11,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Firebase Cloud Messaging SDK যুক্ত করা হলো -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',system-ui,sans-serif; -webkit-tap-highlight-color:transparent; }
     body { background:#0a0a0f; color:#fff; min-height:100vh; overflow-x:hidden; }
@@ -357,6 +359,25 @@
   if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
   const auth = firebase.auth();
   const db = firebase.firestore();
+  // পুশ নোটিফিকেশনের জন্য মেসেজিং ইনিশিয়ালাইজ করা হলো
+  const messaging = firebase.messaging();
+
+  // পুশ নোটিফিকেশনের পারমিশন এবং টোকেন সেভ করার ফাংশন
+  async function requestNotificationPermission(uid) {
+      try {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+              const token = await messaging.getToken({
+                  vapidKey: 'BKJVWkPT7FF8_Jh0SSbe-E1vofMAEl1_yF8q2pjynXm5exFXv0edN3puQUivu6BsrREGP0MbXNdYIV_ULltvb6E'
+              });
+              if (token) {
+                  await db.collection('users').doc(uid).update({ fcmToken: token });
+              }
+          }
+      } catch (error) {
+          console.error('Notification permission error:', error);
+      }
+  }
 
   let currentUserData = null;
   let isAdmin = false;
@@ -459,6 +480,9 @@
 
   auth.onAuthStateChanged(user => {
     if(user){
+      // ইউজার লগইন করার সাথে সাথে নোটিফিকেশনের পারমিশন চাওয়া হবে
+      requestNotificationPermission(user.uid);
+      
       document.getElementById('authScreen').style.display = 'none';
       document.getElementById('appScreen').style.display = 'block';
 
@@ -2566,7 +2590,7 @@ window.openAdminUserControl = function() {
 };
 
 window.toggleUserBlock = async function(uid, currentlyBlocked) {
-    const isConfirm = await customConfirm(currentlyBlocked ? 'ইউজারকে আনব্লক করবেন?' : 'ইউজারকে ব্লক করবেন? সে আর লগইন করতে পারবে না।');
+    const isConfirm = await customConfirm(currentlyBlocked ? 'ইউজারকে আনব্লক করবেন?' : 'ইউজারকে ব্লক করবেন? সে আর লগইন করতে পারবে মাতৃ না।');
     if(!isConfirm) return;
     Buffer.show('প্রক্রিয়াকরণ...');
     try {
