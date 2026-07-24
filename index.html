@@ -2689,5 +2689,1040 @@ withdrawFD = async function(index) {
 <!-- ========================================== -->
 <!-- END OF ADD-ON V3                           -->
 <!-- ========================================== -->
+<!-- ========================================== -->
+<!-- COMBINED ADD-ON: SPLASH + MODALS + LOGIC   -->
+<!-- ========================================== -->
+
+<!-- 1. PREMIUM SPLASH SCREEN CSS & HTML -->
+<style>
+  #premiumSplashScreen {
+    position: fixed; 
+    inset: 0; 
+    background: radial-gradient(circle at top, #1a1a2e 0%, #0a0a0f 80%);
+    z-index: 99999999; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .premium-logo-box {
+    width: 110px; height: 110px;
+    background: linear-gradient(135deg, rgba(0,242,254,0.15), rgba(0,0,0,0));
+    border: 1.5px solid rgba(0,242,254,0.4); border-radius: 30px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 15px 35px rgba(0,242,254,0.2), inset 0 0 20px rgba(0,242,254,0.1);
+    margin-bottom: 25px; backdrop-filter: blur(10px);
+    animation: floatLogo 2.5s ease-in-out infinite alternate;
+  }
+  .premium-logo-box i { font-size: 50px; color: #00f2fe; filter: drop-shadow(0 0 15px rgba(0,242,254,0.8)); }
+  .premium-brand-text {
+    font-size: 36px; font-weight: 900;
+    background: linear-gradient(to right, #FFD700, #F39C12, #00f2fe);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    display: flex; justify-content: center; gap: 2px; margin-bottom: 8px;
+    text-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  }
+  .premium-brand-text span { opacity: 0; transform: translateY(20px); animation: popUpLetter 0.6s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .premium-tagline { color: #888; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; font-weight: bold; opacity: 0; transform: translateY(10px); animation: fadeUpItem 0.8s 1.5s forwards ease-out; }
+  .premium-loader-bar { width: 180px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-top: 40px; overflow: hidden; position: relative; opacity: 0; animation: fadeUpItem 0.8s 2s forwards ease-out; }
+  .premium-loader-fill { position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, #00f2fe, #FFD700, transparent); animation: slideLoad 1.5s infinite ease-in-out; }
+  @keyframes floatLogo { 0% { transform: translateY(0px) scale(1); } 100% { transform: translateY(-12px) scale(1.03); } }
+  @keyframes popUpLetter { to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUpItem { to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideLoad { 100% { left: 100%; } }
+</style>
+
+<div id="premiumSplashScreen">
+  <div class="premium-logo-box"><i class="fas fa-shield-alt"></i></div>
+  <div class="premium-brand-text" id="animatedBrandText"></div>
+  <div class="premium-tagline">Premium Finance App</div>
+  <div class="premium-loader-bar"><div class="premium-loader-fill"></div></div>
+</div>
+
+<!-- 2. ABOUT APP & DELETE ACCOUNT MODALS -->
+<div id="aboutAppModal" class="admin-modal-overlay" style="z-index: 5000;">
+    <div class="admin-modal-box" style="max-height: 85vh; overflow-y: auto;">
+        <button class="close-modal" onclick="document.getElementById('aboutAppModal').style.display='none'"><i class="fas fa-times"></i></button>
+        <h3 style="color:var(--primary); text-align:center; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px;"><i class="fas fa-info-circle"></i> About App</h3>
+        <div style="font-size:13px; line-height:1.6; color:#ddd; text-align:left;">
+            <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:10px; border:1px solid #333; margin-bottom:15px;">
+                <h4 style="color:var(--gold); margin-bottom:5px;">🌟 Star Finance - স্টার ফিন্যান্স</h4>
+                <p><strong>(BN):</strong> স্টার ফিন্যান্স হলো একটি বিশ্বস্ত এবং সহজ লোন ও সেভিংস (FD/RD) প্ল্যাটফর্ম। আমাদের লক্ষ্য হলো জরুরি প্রয়োজনে দ্রুত আর্থিক সহায়তা প্রদান করা।</p>
+                <p style="margin-top:5px; color:#aaa;"><strong>(EN):</strong> Star Finance is a trusted and easy loan & savings (FD/RD) platform. Our goal is to provide fast financial support during emergencies.</p>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:10px; border:1px solid #333; margin-bottom:15px;">
+                <h4 style="color:var(--primary); margin-bottom:5px;"><i class="fas fa-tachometer-alt"></i> সিভিল স্কোর (CIBIL Score)</h4>
+                <ul style="margin-left:20px;">
+                    <li>সময়মতো লোন শোধ করলে সিভিল স্কোর <strong>+৩০ পয়েন্ট</strong> বৃদ্ধি পাবে।</li>
+                    <li>কিস্তি দিতে দেরি করলে প্রতিদিন <strong>-১০ পয়েন্ট</strong> করে কমবে।</li>
+                    <li>স্কোর জিরো (0) বা খারাপ হলে পরবর্তী লোনের সুবিধা বন্ধ হয়ে যাবে।</li>
+                </ul>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:10px; border:1px solid #333;">
+                <h4 style="color:var(--danger); margin-bottom:5px;"><i class="fas fa-file-invoice-dollar"></i> চার্জ এবং পেনাল্টি (Charges & Penalty)</h4>
+                <ul style="margin-left:20px;">
+                    <li><strong>লোন পেনাল্টি:</strong> ১-৫ দিন দেরির জন্য ৫%, ৬-১৫ দিনের জন্য ১০%, এবং ৩০+ দিনের জন্য ৩০% পর্যন্ত অতিরিক্ত চার্জ ধার্য হবে।</li>
+                    <li><strong>FD ব্রেকিং চার্জ:</strong> নির্দিষ্ট মেয়াদের আগে ফিক্সড ডিপোজিট (FD) ভেঙে ফেললে আসল টাকার ওপর ১০% চার্জ কাটা হবে।</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deleteAccountModal" class="admin-modal-overlay" style="z-index: 5000;">
+    <div class="admin-modal-box" style="text-align:center; border:1px solid var(--danger);">
+        <button class="close-modal" onclick="document.getElementById('deleteAccountModal').style.display='none'"><i class="fas fa-times"></i></button>
+        <i class="fas fa-user-times fa-3x" style="color:var(--danger); margin-bottom:15px;"></i>
+        <h3 style="color:var(--danger); margin-bottom:10px;">একাউন্ট ডিলিট করুন</h3>
+        <p style="color:#aaa; font-size:13px; margin-bottom:20px;">সতর্কতা: এটি করলে আপনার সমস্ত ডেটা, ওয়ালেট ব্যালেন্স এবং প্রোফাইল সম্পূর্ণ মুছে যাবে। এটি আর ফিরিয়ে আনা সম্ভব নয়।</p>
+        <input type="password" id="deleteAccPass" class="auth-input" placeholder="আপনার লগইন পাসওয়ার্ড দিন" style="text-align:center;">
+        <button class="auth-btn" style="background:var(--danger); color:#fff; margin-top:10px;" onclick="confirmDeleteAccount()">
+            <i class="fas fa-trash-alt"></i> কনফার্ম ও ডিলিট করুন
+        </button>
+    </div>
+</div>
+
+<!-- 3. COMBINED JAVASCRIPT LOGIC -->
+<script>
+  // --- Splash Screen Logic ---
+  const brandName = "Star Finance";
+  const textContainer = document.getElementById('animatedBrandText');
+  if (textContainer) {
+      brandName.split('').forEach((char, index) => {
+        let span = document.createElement('span');
+        span.innerHTML = char === ' ' ? '&nbsp;' : char;
+        span.style.animationDelay = (0.3 + (index * 0.1)) + 's';
+        textContainer.appendChild(span);
+      });
+  }
+
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      const splash = document.getElementById('premiumSplashScreen');
+      if (splash) {
+        splash.style.opacity = '0';
+        splash.style.transform = 'scale(1.05)';
+        setTimeout(() => splash.remove(), 600);
+      }
+    }, 5000); 
+  });
+
+  // --- Auto-inject Menu Items in Sidebar ---
+  document.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => {
+          const sidebarMenu = document.getElementById('sidebarMenu');
+          if (sidebarMenu) {
+              const newMenuHtml = `
+                <div class="sidebar-item" onclick="toggleSidebar(); document.getElementById('aboutAppModal').style.display='flex'"><i class="fas fa-info-circle" style="color:#3498db;"></i> About App (অ্যাপের তথ্য)</div>
+                <div class="sidebar-item" onclick="toggleSidebar(); openDeleteAccountModal()" style="color:var(--danger);"><i class="fas fa-user-times" style="color:var(--danger);"></i> ডিলিট একাউন্ট (Delete Account)</div>
+              `;
+              const logoutItem = Array.from(sidebarMenu.children).find(el => el.innerHTML.includes('লগআউট'));
+              if(logoutItem) {
+                  logoutItem.insertAdjacentHTML('beforebegin', newMenuHtml);
+              } else {
+                  sidebarMenu.insertAdjacentHTML('beforeend', newMenuHtml);
+              }
+          }
+      }, 500); 
+  });
+
+  // --- Delete Account Logic ---
+  function openDeleteAccountModal() {
+      if (!currentUserData) return showToast('দয়া করে লগইন করুন!');
+      if (currentUserData.activeLoan && (currentUserData.activeLoan.status === 'active' || currentUserData.activeLoan.status === 'default')) {
+          customConfirm("আপনার একটি রানিং লোন রয়েছে! লোন সম্পূর্ণ পরিশোধ না করা পর্যন্ত আপনি একাউন্ট ডিলিট করতে পারবেন না।").then(()=>{});
+          return;
+      }
+      document.getElementById('deleteAccPass').value = '';
+      document.getElementById('deleteAccountModal').style.display = 'flex';
+  }
+
+  async function confirmDeleteAccount() {
+      const pass = document.getElementById('deleteAccPass').value.trim();
+      if (!pass) return showToast('আপনার লগইন পাসওয়ার্ড দিন');
+
+      const isConfirm = await customConfirm('আপনি কি সত্যিই আপনার একাউন্ট ডিলিট করতে চান? সব ডেটা চিরতরে মুছে যাবে।');
+      if (!isConfirm) return;
+
+      Buffer.show('একাউন্ট মুছে ফেলা হচ্ছে...');
+      try {
+          const user = firebase.auth().currentUser;
+          const credential = firebase.auth.EmailAuthProvider.credential(user.email, pass);
+          await user.reauthenticateWithCredential(credential);
+
+          await db.collection('users').doc(user.uid).delete();
+          await user.delete();
+
+          Buffer.hide();
+          showToast('আপনার একাউন্ট সফলভাবে মুছে ফেলা হয়েছে।');
+          document.getElementById('deleteAccountModal').style.display = 'none';
+      } catch (error) {
+          Buffer.hide();
+          console.error("Delete Auth Error: ", error);
+          if (error.code === 'auth/wrong-password') {
+              showToast('ভুল পাসওয়ার্ড! সঠিক পাসওয়ার্ড দিন।');
+          } else {
+              showToast('ত্রুটি: ' + error.message);
+          }
+      }
+  }
+</script>
+<!-- ========================================== -->
+<!-- COMBINED ADD-ON: END                       -->
+<!-- ========================================== -->
+<!-- ========================================== -->
+<!-- ADD-ON V4 + V5: SMALL LOAN & EMERGENCY NEED-->
+<!-- ========================================== -->
+
+<style>
+  /* Professional Emergency Section UI */
+  .emg-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px; }
+  .emg-card { background: linear-gradient(145deg, #151520, #1a1a2e); border: 1px solid #333; border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+  .emg-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+  
+  .icon-playstore { font-size: 40px; background: -webkit-linear-gradient(45deg, #4285F4, #34A853, #FBBC05, #EA4335); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .icon-mobile { font-size: 40px; color: #2ecc71; filter: drop-shadow(0 0 10px rgba(46, 204, 113, 0.4)); }
+  .icon-data { font-size: 40px; color: #9b59b6; filter: drop-shadow(0 0 10px rgba(155, 89, 182, 0.4)); }
+  
+  .emg-card-text h4 { font-size: 18px; color: #fff; margin-bottom: 5px; }
+  .emg-card-text p { font-size: 12px; color: #aaa; }
+
+  /* Admin Manager Tabs */
+  .emg-admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+  .emg-admin-tab { flex: 1; padding: 10px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: bold; border: 1px solid #333; transition: 0.3s; }
+  .emg-admin-tab.active { background: var(--primary); color: #000; border-color: var(--primary); }
+</style>
+
+<!-- Emergency Main Menu Screen -->
+<div id="emgMainMenuScreen" class="page-screen">
+    <div class="page-header">
+        <button class="page-back" onclick="openPage('homeScreen')"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-bolt" style="color:#00f2fe;"></i> Emergency Need</h3>
+    </div>
+    <p style="color:#aaa; font-size:13px; text-align:center;">০% ডাউনপেমেন্টে সার্ভিস নিন। ১ মাসের মধ্যে ৫% চার্জসহ পরিশোধ করুন। লেট ফি: ৫ টাকা/দিন।</p>
+    
+    <div class="emg-grid">
+        <div class="emg-card" onclick="openEmgForm('playstore')">
+            <i class="fab fa-google-play icon-playstore"></i>
+            <div class="emg-card-text">
+                <h4>Google Play Redeem</h4>
+                <p>₹10 থেকে ₹300 টাকার রিডিম কোড</p>
+            </div>
+        </div>
+        <div class="emg-card" onclick="openEmgForm('mobile')">
+            <i class="fas fa-mobile-alt icon-mobile"></i>
+            <div class="emg-card-text">
+                <h4>Mobile Recharge</h4>
+                <p>১ মাসের প্ল্যান (সর্বোচ্চ ₹349)</p>
+            </div>
+        </div>
+        <div class="emg-card" onclick="openEmgForm('data')">
+            <i class="fas fa-wifi icon-data"></i>
+            <div class="emg-card-text">
+                <h4>Data Top-up</h4>
+                <p>ইমারজেন্সি ডাটা রিচার্জ</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Emergency Dynamic Form Screen -->
+<div id="emgFormScreen" class="page-screen">
+    <div class="page-header">
+        <button class="page-back" onclick="openEmgMainScreen()"><i class="fas fa-arrow-left"></i></button>
+        <h3 id="emgFormTitle">সার্ভিস রিকোয়েস্ট</h3>
+    </div>
+    <div id="emgFormBody" style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #333;">
+        <!-- Dynamic Form Fields -->
+    </div>
+</div>
+
+<!-- Admin Emergency Manager Modal -->
+<div id="adminEmgManagerModal" class="admin-modal-overlay">
+    <div class="admin-modal-box" style="max-width: 500px;">
+        <button class="close-modal" onclick="document.getElementById('adminEmgManagerModal').style.display='none'"><i class="fas fa-times"></i></button>
+        <h3 style="color:#e67e22; margin-bottom:20px; text-align:center; border-bottom:1px solid #333; padding-bottom:15px;"><i class="fas fa-bolt"></i> ইমারজেন্সি ম্যানেজমেন্ট</h3>
+        
+        <div class="emg-admin-tabs">
+            <div class="emg-admin-tab active" id="tabEmgPending" onclick="switchEmgTab('pending')">পেন্ডিং রিকোয়েস্ট</div>
+            <div class="emg-admin-tab" id="tabEmgActive" onclick="switchEmgTab('active')">অ্যাক্টিভ সার্ভিসেস</div>
+        </div>
+
+        <div id="adminEmgBody" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+            <!-- Dynamic Admin Content -->
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        // ১. ইউজার হোম স্ক্রিনে স্মল লোন এবং ইমারজেন্সি কার্ড যুক্ত করা
+        const gridMenu = document.querySelector('.grid-menu');
+        if(gridMenu && !document.getElementById('smallLoanCardBtn')) {
+            gridMenu.insertAdjacentHTML('beforeend', `
+                <div class="menu-card" id="smallLoanCardBtn" onclick="openSmallLoan()" style="border-color:#f1c40f; background: rgba(241, 196, 15, 0.05);">
+                    <div class="menu-icon"><i class="fas fa-coins" style="color:#f1c40f;"></i></div>
+                    <h4>স্মল লোন</h4>
+                </div>
+                <div class="menu-card" id="emgCardBtn" onclick="openEmgMainScreen()" style="border-color:#00f2fe; background: linear-gradient(145deg, rgba(0,242,254,0.05), rgba(0,0,0,0.5));">
+                    <div class="menu-icon"><i class="fas fa-bolt" style="color:#00f2fe; filter:drop-shadow(0 0 10px rgba(0,242,254,0.6));"></i></div>
+                    <h4 style="color:#fff;">Emergency Need</h4>
+                </div>
+            `);
+        }
+
+        // ২. অ্যাডমিন প্যানেলের ওপরে (ফাঁকা অংশে) ইমারজেন্সি বাটন বসানো
+        const adminScreen = document.getElementById('adminScreen');
+        const adminGrid = adminScreen ? adminScreen.querySelector('.admin-grid') : null;
+        if(adminGrid && !document.getElementById('adminEmgTopBtn')) {
+            const btnHtml = `
+            <div id="adminEmgTopBtn" class="admin-card" onclick="openAdminEmgManager()" style="border-color:#e67e22; background: linear-gradient(145deg, rgba(230, 126, 34, 0.15), rgba(0,0,0,0.6)); margin-bottom: 20px; box-shadow: 0 5px 15px rgba(230,126,34,0.2);">
+                <i class="fas fa-bolt" style="color:#e67e22; font-size:35px; margin-bottom:10px;"></i>
+                <h4 style="font-size:18px; color:#fff;">ইমারজেন্সি রিকোয়েস্ট ও সার্ভিসেস</h4>
+                <p style="font-size:12px; color:#aaa; margin-top:5px;">একসেপ্ট/রিজেক্ট এবং বর্তমান অ্যাক্টিভ সার্ভিস চেক করুন</p>
+            </div>`;
+            adminScreen.insertBefore(document.createRange().createContextualFragment(btnHtml), adminGrid);
+        }
+    }, 1200);
+});
+
+// =====================================
+// FRONTEND USER LOGIC: SMALL LOAN
+// =====================================
+let slSelectedEmi = '4';
+
+window.openSmallLoan = function() {
+    if(!currentUserData) return showToast('লগইন করুন');
+    if(currentUserData.loanStatus === 'active' || currentUserData.loanStatus === 'pending') {
+        return showToast('আপনার ইতিমধ্যে একটি লোন অ্যাক্টিভ বা পেন্ডিং আছে!');
+    }
+    if(!currentUserData.loanKYC || !currentUserData.loanKYC.name) {
+        return showToast('দয়া করে আগে লোন সার্ভিস থেকে KYC সম্পূর্ণ করুন।');
+    }
+
+    const subPage = document.createElement('div');
+    subPage.id = 'smallLoanSubPage';
+    subPage.className = 'page-screen screen-transition';
+    subPage.style.display = 'block';
+    subPage.innerHTML = `
+      <div class="page-header">
+        <button class="page-back" onclick="closeSmallLoan()"><i class="fas fa-arrow-left"></i></button>
+        <h3><i class="fas fa-coins" style="color:#f1c40f;"></i> স্মল লোন</h3>
+      </div>
+      <div style="padding:10px;">
+        <p style="color:#aaa; font-size:12px; margin-bottom:15px; text-align:center;">সিভিল স্কোর ছাড়াই ১০০ থেকে ৩০০ টাকা পর্যন্ত ইনস্ট্যান্ট লোন (স্থায়ী সুদ: ৪০%)</p>
+        <div class="loan-slider-container">
+          <label>লোনের পরিমাণ (₹100 - ₹300)</label>
+          <input type="range" min="100" max="300" value="100" step="50" id="smallLoanSlider" oninput="updateSmallLoanPreview()">
+          <div class="slider-values"><span>₹100</span><span>₹300</span></div>
+          <div class="selected-amount">₹<span id="slSliderAmount">100</span></div>
+        </div>
+
+        <div style="margin-top:15px;">
+          <label style="color:#ddd; font-size:14px;">কিস্তির মেয়াদ নির্বাচন করুন</label>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+              <button class="btn-outline" style="flex:1; margin:0;" onclick="selectSmallEmi('4')" id="btnSl4">৪ সপ্তাহ (৪ কিস্তি)</button>
+              <button class="btn-outline" style="flex:1; margin:0;" onclick="selectSmallEmi('8')" id="btnSl8">৮ সপ্তাহ (৮ কিস্তি)</button>
+          </div>
+        </div>
+
+        <div style="background:#111; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>আসল লোন:</span> <strong>₹<span id="slAmtView">100</span></strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>সুদ (40%):</span> <strong style="color:var(--gold);">₹<span id="slIntView">40</span></strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>সর্বমোট পরিশোধ:</span> <strong style="color:var(--success);">₹<span id="slTotalView">140</span></strong></div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; color:#aaa; margin-top:5px; padding-top:5px; border-top:1px dashed #333;">
+              <span>প্রতি কিস্তি (EMI):</span> <strong style="color:var(--primary);">₹<span id="slEmiView">35</span> (সাপ্তাহিক)</strong>
+          </div>
+        </div>
+        <button class="auth-btn" style="background:#f1c40f; color:#000; margin-top:20px;" onclick="submitSmallLoanReq()"><i class="fas fa-check-circle"></i> আবেদন জমা দিন</button>
+      </div>
+    `;
+    // প্রথমে পুরনো সমস্ত স্ক্রিন হাইড করুন
+document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+
+// এরপর নতুন পেজটি যুক্ত করুন এবং সেটিকে দৃশ্যমান করুন
+document.querySelector('.dashboard-container').appendChild(subPage);
+subPage.style.display = 'block';
+
+selectSmallEmi('4');
+}
+window.selectSmallEmi = function(val) {
+    slSelectedEmi = val;
+    document.getElementById('btnSl4').style.background = val === '4' ? '#f1c40f' : 'transparent';
+    document.getElementById('btnSl4').style.color = val === '4' ? '#000' : '#f1c40f';
+    document.getElementById('btnSl8').style.background = val === '8' ? '#f1c40f' : 'transparent';
+    document.getElementById('btnSl8').style.color = val === '8' ? '#000' : '#f1c40f';
+    updateSmallLoanPreview();
+}
+
+window.updateSmallLoanPreview = function() {
+    const amt = parseInt(document.getElementById('smallLoanSlider').value);
+    document.getElementById('slSliderAmount').innerText = amt;
+    document.getElementById('slAmtView').innerText = amt;
+    const interest = amt * 0.40;
+    document.getElementById('slIntView').innerText = interest.toFixed(0);
+    const total = amt + interest;
+    document.getElementById('slTotalView').innerText = total.toFixed(0);
+    const emiCount = parseInt(slSelectedEmi);
+    const emi = Math.ceil(total / emiCount);
+    document.getElementById('slEmiView').innerText = emi;
+}
+
+window.closeSmallLoan = function() {
+    const el = document.getElementById('smallLoanSubPage');
+    if(el) el.remove();
+    openPage('homeScreen');
+}
+
+window.submitSmallLoanReq = async function() {
+    const amt = parseInt(document.getElementById('slSliderAmount').innerText);
+    const loanType = 'small_lvl_' + slSelectedEmi; 
+    const isConfirm = await customConfirm(`আপনি কি ₹${amt} স্মল লোনের জন্য আবেদন করতে চান?`);
+    if(!isConfirm) return;
+
+    Buffer.show('আবেদন পাঠানো হচ্ছে...');
+    try {
+        await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+        await db.collection('admin_requests').add({
+            uid: currentUserData.uid, kyc: currentUserData.loanKYC,
+            amount: amt, type: 'loan', loanType: loanType,
+            interest: 0.40, status: 'pending', timestamp: Date.now()
+        });
+        Buffer.hide(); showToast('আবেদন এডমিন প্যানেলে পাঠানো হয়েছে!');
+        closeSmallLoan();
+    } catch(e) { Buffer.hide(); showToast('ত্রুটি: '+e.message); }
+}
+
+// =====================================
+// FRONTEND USER LOGIC: EMERGENCY NEED
+// =====================================
+let currentEmgType = '';
+
+window.openEmgMainScreen = function() {
+    if(!currentUserData) return showToast('লগইন করুন');
+    if(currentUserData.activeEmergency && currentUserData.activeEmergency.status === 'active') {
+        return showToast('আপনার একটি সার্ভিস অ্যাক্টিভ রয়েছে! আগে সেটি পরিশোধ করুন।');
+    }
+    document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+    document.getElementById('emgMainMenuScreen').style.display = 'block';
+}
+
+window.openEmgForm = function(type) {
+    currentEmgType = type;
+    document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+    document.getElementById('emgFormScreen').style.display = 'block';
+
+    const formBody = document.getElementById('emgFormBody');
+    const title = document.getElementById('emgFormTitle');
+
+    if(type === 'playstore') {
+        title.innerHTML = `<i class="fab fa-google-play" style="color:#34A853;"></i> Google Play Redeem`;
+        formBody.innerHTML = `
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">ইমেইল বা ফোন নাম্বার</label>
+            <input type="text" id="reqTarget" class="auth-input" placeholder="কোডটি কোথায় পাঠাতে হবে?">
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">রিডিমের পরিমাণ (₹10 - ₹300)</label>
+            <input type="number" id="reqAmount" class="auth-input" placeholder="10 থেকে 300 লিখুন" min="10" max="300">
+            <button class="auth-btn" style="background:#34A853; color:#fff; margin-top:10px;" onclick="submitNewEmg()"><i class="fas fa-paper-plane"></i> রিকোয়েস্ট পাঠান</button>
+        `;
+    } 
+    else if(type === 'mobile') {
+        title.innerHTML = `<i class="fas fa-mobile-alt" style="color:#2ecc71;"></i> Mobile Recharge`;
+        formBody.innerHTML = `
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">সিম অপারেটর</label>
+            <select id="reqOperator" class="auth-input" style="background:#0a0a0f;">
+                <option value="Jio">Reliance Jio</option>
+                <option value="Airtel">Airtel</option>
+                <option value="Vi">Vi (Vodafone Idea)</option>
+                <option value="BSNL">BSNL</option>
+            </select>
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">মোবাইল নাম্বার</label>
+            <input type="number" id="reqTarget" class="auth-input" placeholder="10 ডিজিটের নাম্বার দিন">
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">রিচার্জ প্ল্যান (সর্বোচ্চ ₹349)</label>
+            <input type="number" id="reqAmount" class="auth-input" placeholder="ম্যানুয়ালি প্ল্যানের দাম লিখুন" max="349">
+            <p style="color:var(--danger); font-size:11px; margin-top:-5px; margin-bottom:15px;">* শুধুমাত্র ১ মাসের প্ল্যান প্রযোজ্য।</p>
+            <button class="auth-btn" style="background:#2ecc71; color:#000; margin-top:5px;" onclick="submitNewEmg()"><i class="fas fa-paper-plane"></i> রিকোয়েস্ট পাঠান</button>
+        `;
+    } 
+    else if(type === 'data') {
+        title.innerHTML = `<i class="fas fa-wifi" style="color:#9b59b6;"></i> Data Top-up`;
+        formBody.innerHTML = `
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">সিম অপারেটর</label>
+            <select id="reqOperator" class="auth-input" style="background:#0a0a0f;">
+                <option value="Jio">Reliance Jio</option>
+                <option value="Airtel">Airtel</option>
+                <option value="Vi">Vi (Vodafone Idea)</option>
+                <option value="BSNL">BSNL</option>
+            </select>
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">মোবাইল নাম্বার</label>
+            <input type="number" id="reqTarget" class="auth-input" placeholder="10 ডিজিটের নাম্বার দিন">
+            <label style="color:#ddd; font-size:13px; margin-bottom:5px; display:block;">ডাটা প্ল্যান (টাকায়)</label>
+            <input type="number" id="reqAmount" class="auth-input" placeholder="ম্যানুয়ালি প্যাকের দাম লিখুন">
+            <button class="auth-btn" style="background:#9b59b6; color:#fff; margin-top:10px;" onclick="submitNewEmg()"><i class="fas fa-check-circle"></i> রিকোয়েস্ট পাঠান</button>
+        `;
+    }
+}
+
+window.submitNewEmg = async function() {
+    const target = document.getElementById('reqTarget').value.trim();
+    const amount = parseInt(document.getElementById('reqAmount').value);
+    const operatorObj = document.getElementById('reqOperator');
+    const operator = operatorObj ? operatorObj.value : 'N/A';
+
+    if(!target || !amount) return showToast('সব তথ্য সঠিকভাবে দিন।');
+
+    let serviceName = '';
+    let detailsStr = '';
+
+    if(currentEmgType === 'playstore') {
+        if(amount < 10 || amount > 300) return showToast('রিডিম কোড ₹10 থেকে ₹300 হতে হবে।');
+        serviceName = 'Google Play Redeem Code';
+        detailsStr = `Send to: ${target}`;
+    } else if(currentEmgType === 'mobile') {
+        if(amount > 349) return showToast('রিচার্জ সর্বোচ্চ ₹349 পর্যন্ত অনুমোদিত।');
+        if(target.length !== 10) return showToast('সঠিক 10 ডিজিটের নাম্বার দিন।');
+        serviceName = 'Mobile Recharge';
+        detailsStr = `Operator: ${operator} | Number: ${target}`;
+    } else if(currentEmgType === 'data') {
+        if(target.length !== 10) return showToast('সঠিক 10 ডিজিটের নাম্বার দিন।');
+        serviceName = 'Data Top-up';
+        detailsStr = `Operator: ${operator} | Number: ${target}`;
+    }
+
+    const isConfirm = await customConfirm('আপনি কি সার্ভিসটি রিকোয়েস্ট করতে চান? (৫% চার্জ যুক্ত হবে)');
+    if(!isConfirm) return;
+
+    Buffer.show('রিকোয়েস্ট পাঠানো হচ্ছে...');
+    try {
+        await db.collection('admin_requests').add({
+            uid: currentUserData.uid, name: currentUserData.fullname, phone: currentUserData.username,
+            type: 'emergency_v5', serviceType: serviceName, details: detailsStr, amount: amount,
+            status: 'pending', timestamp: Date.now()
+        });
+        Buffer.hide(); 
+        showToast('রিকোয়েস্ট এডমিনকে পাঠানো হয়েছে!');
+        openPage('homeScreen');
+    } catch(e) { Buffer.hide(); showToast('ত্রুটি: '+e.message); }
+}
+
+window.repayEmergencyFromWallet = async function(totalDue) {
+    if((currentUserData.wallet || 0) < totalDue) return showToast('ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই!');
+    const isConfirm = await customConfirm(`আপনি কি ওয়ালেট থেকে ₹${Math.ceil(totalDue)} পরিশোধ করতে চান?`);
+    if(!isConfirm) return;
+
+    Buffer.show('পরিশোধ করা হচ্ছে...');
+    try {
+        await db.collection('users').doc(currentUserData.uid).update({
+            wallet: firebase.firestore.FieldValue.increment(-totalDue),
+            activeEmergency: firebase.firestore.FieldValue.delete()
+        });
+        if(typeof addHistoryRecord === 'function') {
+            addHistoryRecord(currentUserData.uid, 'ইমারজেন্সি সার্ভিস পরিশোধ', Math.ceil(totalDue), 'debit');
+        }
+        Buffer.hide(); showToast('ইমারজেন্সি সার্ভিস সফলভাবে ক্লিয়ার করা হয়েছে!');
+    } catch(e) { Buffer.hide(); showToast('ত্রুটি: '+e.message); }
+}
+
+// =====================================
+// CORE UPDATE UI (For Emergency Display)
+// =====================================
+const baseV5UpdateUI = window.updateUI;
+window.updateUI = function() {
+    if(baseV5UpdateUI) baseV5UpdateUI();
+    if(!currentUserData) return;
+
+    if(currentUserData.activeEmergency && currentUserData.activeEmergency.status === 'active') {
+        const dueDate = currentUserData.activeEmergency.dueDate;
+        if(Date.now() > dueDate) {
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const daysLate = Math.floor((Date.now() - dueDate) / msPerDay);
+            const previousDaysLate = currentUserData.activeEmergency.daysLate || 0;
+            
+            if(daysLate > previousDaysLate) {
+                const penalty = daysLate * 5; 
+                db.collection('users').doc(currentUserData.uid).update({
+                    'activeEmergency.daysLate': daysLate,
+                    'activeEmergency.penalty': penalty
+                });
+            }
+        }
+    }
+
+    const emergencyBoxId = 'emergencyStatusBox';
+    let emergencyBox = document.getElementById(emergencyBoxId);
+    if(currentUserData && currentUserData.activeEmergency && currentUserData.activeEmergency.status === 'active') {
+        const emg = currentUserData.activeEmergency;
+        const penalty = emg.penalty || 0;
+        const totalDue = emg.amount + (emg.amount * emg.interest) + penalty;
+        const daysLeft = Math.floor((emg.dueDate - Date.now())/(1000*60*60*24));
+        let statusText = daysLeft < 0 ? `<span style="color:var(--danger)">Overdue (${Math.abs(daysLeft)} দিন)</span>` : `<span style="color:var(--success)">${daysLeft} দিন বাকি</span>`;
+
+        if(!emergencyBox) {
+            emergencyBox = document.createElement('div');
+            emergencyBox.id = emergencyBoxId;
+            const homeScreen = document.getElementById('homeScreen');
+            homeScreen.insertBefore(emergencyBox, homeScreen.children[1]); 
+        }
+        emergencyBox.innerHTML = `
+            <div style="background:linear-gradient(145deg, rgba(255,77,77,0.1), rgba(0,0,0,0.6)); padding:20px; border-radius:18px; border:1px solid var(--danger); margin-bottom:20px;">
+                <h4 style="color:var(--danger); margin-bottom:10px;"><i class="fas fa-bolt"></i> ইমারজেন্সি সার্ভিস (Active)</h4>
+                <div style="display:flex; justify-content:space-between; font-size:13px; color:#ddd; margin-bottom:5px;">
+                    <span>সার্ভিস: <strong style="color:#00f2fe;">${emg.service}</strong></span>
+                    <span>আসল: ₹${emg.amount}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:13px; color:#ddd; margin-bottom:10px;">
+                    <span>স্ট্যাটাস: ${statusText}</span>
+                    <span>পেনাল্টি: <strong style="color:var(--danger);">₹${penalty}</strong></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.4); padding:10px; border-radius:10px; margin-bottom:15px;">
+                    <span style="color:#bbb;">সর্বমোট বাকি (৫% চার্জসহ):</span>
+                    <strong style="color:var(--danger); font-size:16px;">₹${Math.ceil(totalDue)}</strong>
+                </div>
+                <button class="auth-btn" style="background:var(--danger);color:#fff;" onclick="repayEmergencyFromWallet(${totalDue})"><i class="fas fa-wallet"></i> ওয়ালেট থেকে শোধ করুন</button>
+            </div>
+        `;
+    } else {
+        if(emergencyBox) emergencyBox.remove();
+    }
+}
+
+// =====================================
+// ADMIN MANAGER LOGIC
+// =====================================
+window.openAdminEmgManager = function() {
+    if(!isAdmin) return;
+    document.getElementById('adminEmgManagerModal').style.display = 'flex';
+    switchEmgTab('pending');
+}
+
+window.switchEmgTab = function(tabName) {
+    document.getElementById('tabEmgPending').classList.remove('active');
+    document.getElementById('tabEmgActive').classList.remove('active');
+    
+    const body = document.getElementById('adminEmgBody');
+    body.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+    if(tabName === 'pending') {
+        document.getElementById('tabEmgPending').classList.add('active');
+        db.collection('admin_requests').where('type','in',['emergency','emergency_v5']).where('status','==','pending').get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const d = doc.data();
+                html += `
+                <div class="admin-req-item" style="border-left: 3px solid #e67e22; background:rgba(0,0,0,0.6);">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong style="color:var(--primary); font-size:15px;"><i class="fas fa-user-circle"></i> ${d.name}</strong>
+                        <span style="color:var(--success); font-weight:bold; font-size:16px;">₹${d.amount}</span>
+                    </div>
+                    <div style="font-size:13px; color:#ddd; margin-top:8px;">
+                        <strong>সার্ভিস:</strong> <span style="color:#e67e22;">${d.serviceType}</span><br>
+                        <strong>ডিটেইলস:</strong> <span style="color:#fff;">${d.details}</span><br>
+                        <span style="font-size:11px; color:#888;">ID: ${d.phone}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-approve" onclick="approveEmgV5('${doc.id}', '${d.uid}', ${d.amount}, '${d.serviceType} - ${d.details}')">একসেপ্ট</button>
+                        <button class="btn-reject" onclick="rejectEmgV5('${doc.id}')">রিজেক্ট</button>
+                    </div>
+                </div>`;
+            });
+            body.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">কোনো পেন্ডিং রিকোয়েস্ট নেই</div>';
+        }).catch(e => { body.innerHTML = 'Error: ' + e.message; });
+
+    } else {
+        document.getElementById('tabEmgActive').classList.add('active');
+        db.collection('users').get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const u = doc.data();
+                if(u.activeEmergency && u.activeEmergency.status === 'active') {
+                    const emg = u.activeEmergency;
+                    const penalty = emg.penalty || 0;
+                    const totalDue = emg.amount + (emg.amount * emg.interest) + penalty;
+                    const daysLeft = Math.floor((emg.dueDate - Date.now())/(1000*60*60*24));
+                    let statusHtml = daysLeft < 0 ? `<span style="color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Overdue (${Math.abs(daysLeft)} দিন)</span>` : `<span style="color:var(--success);"><i class="fas fa-clock"></i> ${daysLeft} দিন বাকি</span>`;
+
+                    html += `
+                    <div class="admin-req-item" style="border-left: 3px solid var(--success); background:rgba(0,0,0,0.6);">
+                        <strong style="color:var(--gold); font-size:15px; display:block; margin-bottom:5px;"><i class="fas fa-user-check"></i> ${u.fullname} <span style="font-size:11px; color:#aaa;">(${u.username})</span></strong>
+                        <div style="font-size:12px; color:#ddd; margin-bottom:5px; background:rgba(255,255,255,0.05); padding:8px; border-radius:5px;">
+                            ${emg.service}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
+                            <span>আসল: ₹${emg.amount}</span>
+                            <span>পেনাল্টি: ₹${penalty}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #444; padding-top:10px; margin-top:5px;">
+                            ${statusHtml}
+                            <span style="color:var(--danger); font-weight:bold; font-size:14px;">বাকি: ₹${Math.ceil(totalDue)}</span>
+                        </div>
+                    </div>`;
+                }
+            });
+            body.innerHTML = html || '<div style="text-align:center;color:#aaa;padding:20px;">বর্তমানে কোনো একটিভ সার্ভিস নেই</div>';
+        }).catch(e => { body.innerHTML = 'Error: ' + e.message; });
+    }
+}
+
+window.approveEmgV5 = async function(docId, uid, amount, serviceDetails) {
+    const isConfirm = await customConfirm('ইমারজেন্সি সার্ভিসটি একসেপ্ট করবেন?');
+    if(!isConfirm) return;
+    Buffer.show('অ্যাপ্রুভ হচ্ছে...');
+    try {
+        const dueDate = Date.now() + (30 * 24 * 60 * 60 * 1000); 
+        await db.collection('users').doc(uid).update({
+            activeEmergency: { service: serviceDetails, amount: amount, interest: 0.05, penalty: 0, paid: 0, dueDate: dueDate, status: 'active' }
+        });
+        await db.collection('admin_requests').doc(docId).update({ status: 'approved' });
+        Buffer.hide(); 
+        showToast('সার্ভিস সফলভাবে একসেপ্ট করা হয়েছে!');
+        switchEmgTab('pending');
+    } catch(e) { Buffer.hide(); showToast('এরর: '+e.message); }
+}
+
+window.rejectEmgV5 = async function(docId) {
+    const isConfirm = await customConfirm('রিকোয়েস্টটি রিজেক্ট করতে চান?');
+    if(!isConfirm) return;
+    Buffer.show('রিজেক্ট হচ্ছে...');
+    try {
+        await db.collection('admin_requests').doc(docId).update({ status: 'rejected' });
+        Buffer.hide(); 
+        showToast('সার্ভিস রিজেক্ট করা হয়েছে!');
+        switchEmgTab('pending');
+    } catch(e) { Buffer.hide(); showToast('এরর: '+e.message); }
+}
+
+// অ্যাডমিন অ্যাপ্রুভ ওভাররাইড (Small Loan অ্যাপ্রুভ করার জন্য)
+const baseV5AdminApprove = window.adminApprove;
+window.adminApprove = async function(docId, uid, type, amount, loanType, interest) {
+    if(type === 'loan' && loanType.startsWith('small_lvl_')) {
+        const isConfirm = await customConfirm('স্মল লোন অ্যাপ্রুভ করবেন?');
+        if(!isConfirm) return;
+        Buffer.show('অ্যাপ্রুভ হচ্ছে...');
+        try {
+            const emiCount = parseInt(loanType.split('_')[2]); // 4 বা 8 কিস্তি
+            const dueDate = Date.now() + (emiCount * 7 * 24 * 60 * 60 * 1000); 
+            await db.collection('users').doc(uid).update({
+                loanStatus: 'active',
+                activeLoan: { amount: amount, type: 'lvl_' + emiCount, interest: interest, paid: 0, dueDate: dueDate, status:'active', penalty: 0 }
+            });
+            await db.collection('admin_requests').doc(docId).update({ status: 'approved' });
+            Buffer.hide(); openAdminModal(type); showToast('স্মল লোন অ্যাপ্রুভ করা হয়েছে!');
+        } catch(e) { Buffer.hide(); showToast('এরর: '+e.message); }
+        return;
+    }
+    await baseV5AdminApprove(docId, uid, type, amount, loanType, interest);
+}
+</script>
+<!-- ========================================== -->
+<!-- END OF ADD-ON V4 & V5                      -->
+<!-- ========================================== -->
+<!-- ========================================== -->
+<!-- STAR FINANCE: 12 PREMIUM THEMES & EFFECTS  -->
+<!-- ========================================== -->
+
+<style>
+    /* লগইন স্ক্রিনের ডিফল্ট কালার লক করা হলো (যাতে লগইন স্ক্রিন থিমের বাইরে থাকে) */
+    #authScreen, #authScreen .auth-box, #authScreen .auth-btn, #authScreen .auth-input {
+        --primary: #00f2fe !important;
+        --primary-dark: #4facfe !important;
+        --border: rgba(0,242,254,0.2) !important;
+        backdrop-filter: none !important;
+    }
+
+    /* গ্লাস ইফেক্ট (Glassmorphism) শুধুমাত্র ফেস্টিভ্যাল থিমগুলোর জন্য */
+    body.festival-glass-active .menu-card, 
+    body.festival-glass-active .page-screen, 
+    body.festival-glass-active .admin-modal-box,
+    body.festival-glass-active .balance-card,
+    body.festival-glass-active .civil-score-container,
+    body.festival-glass-active .dashboard-container .emg-card {
+        background: rgba(20, 20, 30, 0.65) !important;
+        backdrop-filter: blur(15px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+        border: 1px solid var(--border) !important;
+    }
+    
+    /* থিম প্রিভিউ কার্ড হোভার ইফেক্ট */
+    .theme-preview-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative; overflow: hidden; cursor: pointer;
+    }
+    .theme-preview-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    }
+
+    /* ========================================== */
+    /* LIVE EFFECTS CSS (SNOW & FIREWORKS)        */
+    /* ========================================== */
+    #themeEffectContainer {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 1; /* UI এর পেছনে থাকার জন্য */
+        overflow: hidden; display: none;
+    }
+    
+    /* Snow Effect */
+    .snowflake {
+        position: absolute; top: -10px; background: white; border-radius: 50%;
+        opacity: 0.8; animation: fall linear infinite;
+    }
+    @keyframes fall {
+        to { transform: translateY(105vh) translateX(20px); }
+    }
+
+    /* Fireworks Effect */
+    .firework {
+        position: absolute; bottom: 0; width: 4px; height: 15px;
+        background: #ffcf40; border-radius: 50%;
+        animation: shoot 1.2s ease-out forwards;
+    }
+    .explosion {
+        position: absolute; border-radius: 50%;
+        animation: explode 0.8s ease-out forwards;
+    }
+    @keyframes shoot {
+        0% { transform: translateY(0) scale(1); opacity: 1; }
+        100% { transform: translateY(-65vh) scale(0); opacity: 0; }
+    }
+    @keyframes explode {
+        0% { transform: scale(0); opacity: 1; box-shadow: 0 0 0 0 #fff; }
+        100% { transform: scale(1.5); opacity: 0; box-shadow: 0 0 60px 25px transparent; }
+    }
+</style>
+
+<!-- থিম সিলেকশন মডেল (Modal) HTML -->
+<div id="themeModal" class="admin-modal-overlay" style="z-index: 5500;">
+    <div class="admin-modal-box" style="text-align:center; background: #151520; border: 1px solid rgba(0,242,254,0.3); max-height: 85vh; overflow-y: auto;">
+        <button class="close-modal" onclick="document.getElementById('themeModal').style.display='none'"><i class="fas fa-times"></i></button>
+        <h3 style="color:var(--primary); margin-bottom:10px;"><i class="fas fa-palette"></i> অ্যাপ থিম</h3>
+        <p style="font-size:12px; color:#aaa; margin-bottom:20px;">আপনার পছন্দের থিম বা ফেস্টিভ্যাল ডিজাইন বেছে নিন</p>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            
+            <!-- 1. Default Theme (Full Width) -->
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#fff; grid-column: span 2; background: #0a0a0f;" onclick="changeAppTheme(0)">
+                <div style="height:25px; background:linear-gradient(to right, #4facfe, #00f2fe); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:14px; color:#fff; font-weight:bold;"><i class="fas fa-home"></i> ডিফল্ট থিম (Original)</span>
+            </div>
+
+            <!-- 2-8. The Original 7 Premium Themes -->
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#00f2fe; background:#0a0a0f;" onclick="changeAppTheme(1)">
+                <div style="height:25px; background:linear-gradient(to right, #4facfe, #00f2fe); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Dark Cyan</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#00ffff; background:#001111;" onclick="changeAppTheme(2)">
+                <div style="height:25px; background:linear-gradient(to right, #008b8b, #00ffff); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Neon Cyan</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#b06ab3; background:#0f0c29;" onclick="changeAppTheme(3)">
+                <div style="height:25px; background:linear-gradient(to right, #4568dc, #b06ab3); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Midnight Purple</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#43e97b; background:#051c14;" onclick="changeAppTheme(4)">
+                <div style="height:25px; background:linear-gradient(to right, #38f9d7, #43e97b); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Emerald Green</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#fa709a; background:#1a0b00;" onclick="changeAppTheme(5)">
+                <div style="height:25px; background:linear-gradient(to right, #fee140, #fa709a); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Sunset Orange</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#00c6fb; background:#001528;" onclick="changeAppTheme(6)">
+                <div style="height:25px; background:linear-gradient(to right, #005bea, #00c6fb); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Ocean Blue</span>
+            </div>
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#ff758c; grid-column: span 2; background:#1c0a14;" onclick="changeAppTheme(7)">
+                <div style="height:25px; background:linear-gradient(to right, #ff7eb3, #ff758c); border-radius:5px; margin-bottom:10px;"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold;">Rose Gold</span>
+            </div>
+
+            <!-- 9-12. Premium Festival Themes (Images + Effects) -->
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#FF9933; background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1597328290883-571eb66f7842?q=80&w=300&auto=format&fit=crop'); background-size: cover; background-position: center;" onclick="changeAppTheme(8)">
+                <div style="height:25px; background:linear-gradient(to right, #FF9933 0%, #ffffff 50%, #138808 100%); border-radius:5px; margin-bottom:10px; border: 1px solid rgba(0,0,0,0.5);"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold; text-shadow: 0 2px 4px #000;">ইন্ডিপেন্ডেন্স ডে</span>
+            </div>
+
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#00f2fe; background: linear-gradient(rgba(0,0,128,0.6), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1541817361664-912a7d767c29?q=80&w=300&auto=format&fit=crop'); background-size: cover; background-position: center;" onclick="changeAppTheme(9)">
+                <div style="height:25px; background:linear-gradient(to right, #000080 0%, #FF9933 100%); border-radius:5px; margin-bottom:10px; border: 1px solid rgba(255,255,255,0.2);"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold; text-shadow: 0 2px 4px #000;">২৬ জানুয়ারি</span>
+            </div>
+
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#2ecc71; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,77,64,0.8)), url('https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=300&auto=format&fit=crop'); background-size: cover; background-position: center;" onclick="changeAppTheme(10)">
+                <div style="height:25px; background:linear-gradient(to right, #D42426 0%, #004d40 100%); border-radius:5px; margin-bottom:10px; border: 1px solid rgba(255,255,255,0.2);"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold; text-shadow: 0 2px 4px #000;">ক্রিসমাস (স্নো)</span>
+            </div>
+
+            <div class="menu-card theme-preview-card" style="padding:15px; border-color:#FFD700; background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.9)), url('https://images.unsplash.com/photo-1467810563316-b5476525c0f9?q=80&w=300&auto=format&fit=crop'); background-size: cover; background-position: center;" onclick="changeAppTheme(11)">
+                <div style="height:25px; background:linear-gradient(to right, #FFD700 0%, #222 100%); border-radius:5px; margin-bottom:10px; border: 1px solid rgba(255,255,255,0.2);"></div>
+                <span style="font-size:12px; color:#fff; font-weight:bold; text-shadow: 0 2px 4px #000;">নিউ ইয়ার (বাজি)</span>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- লাইভ ইফেক্ট কন্টেইনার (এটি অ্যাপের ব্যাকগ্রাউন্ডে কাজ করবে) -->
+<div id="themeEffectContainer"></div>
+
+<!-- থিম ইঞ্জিন এবং অ্যানিমেশন স্ক্রিপ্ট -->
+<script>
+    const allThemesData = [
+        // 0: Default Theme (App Original)
+        { primary: '#00f2fe', dark: '#4facfe', bg: '#0a0a0f', card: '#151520', border: 'rgba(0,242,254,0.2)', isFestival: false, effect: 'none' },
+        
+        // 1-7: The Original 7 Premium Themes
+        { primary: '#00f2fe', dark: '#4facfe', bg: '#0a0a0f', card: '#151520', border: 'rgba(0,242,254,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#00ffff', dark: '#008b8b', bg: '#001111', card: '#002222', border: 'rgba(0,255,255,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#b06ab3', dark: '#4568dc', bg: '#0f0c29', card: '#1a153a', border: 'rgba(176,106,179,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#43e97b', dark: '#38f9d7', bg: '#051c14', card: '#0a2a1f', border: 'rgba(67,233,123,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#fa709a', dark: '#fee140', bg: '#1a0b00', card: '#2d1400', border: 'rgba(250,112,154,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#00c6fb', dark: '#005bea', bg: '#001528', card: '#002240', border: 'rgba(0,198,251,0.2)', isFestival: false, effect: 'none' },
+        { primary: '#ff758c', dark: '#ff7eb3', bg: '#1c0a14', card: '#2a0f1e', border: 'rgba(255,117,140,0.2)', isFestival: false, effect: 'none' },
+        
+        // 8-11: Festival Themes (With Premium Background Images & Effects)
+        { primary: '#FF9933', dark: '#138808', bg: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url("https://images.unsplash.com/photo-1597328290883-571eb66f7842?q=80&w=1080&auto=format&fit=crop")', card: 'transparent', border: 'rgba(255, 153, 51, 0.4)', isFestival: true, effect: 'none' },
+        { primary: '#00f2fe', dark: '#FF9933', bg: 'linear-gradient(rgba(0,0,128,0.7), rgba(0,0,0,0.9)), url("https://images.unsplash.com/photo-1541817361664-912a7d767c29?q=80&w=1080&auto=format&fit=crop")', card: 'transparent', border: 'rgba(0, 242, 254, 0.4)', isFestival: true, effect: 'none' },
+        { primary: '#2ecc71', dark: '#e74c3c', bg: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,77,64,0.9)), url("https://images.unsplash.com/photo-1543589077-47d81606c1bf?q=80&w=1080&auto=format&fit=crop")', card: 'transparent', border: 'rgba(231, 76, 60, 0.4)', isFestival: true, effect: 'snow' },
+        { primary: '#FFD700', dark: '#ff5e62', bg: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.95)), url("https://images.unsplash.com/photo-1467810563316-b5476525c0f9?q=80&w=1080&auto=format&fit=crop")', card: 'transparent', border: 'rgba(255, 215, 0, 0.4)', isFestival: true, effect: 'fireworks' }
+    ];
+
+    let currentEffectInterval = null;
+
+    function openThemeModal() {
+        document.getElementById('themeModal').style.display = 'flex';
+    }
+
+    function changeAppTheme(index) {
+        const t = allThemesData[index];
+        
+        // CSS ভ্যারিয়েবল সেট করা হচ্ছে (কালারগুলোর জন্য)
+        document.documentElement.style.setProperty('--primary', t.primary);
+        document.documentElement.style.setProperty('--primary-dark', t.dark);
+        document.documentElement.style.setProperty('--dark-card', t.card);
+        document.documentElement.style.setProperty('--border', t.border);
+        
+        // ব্যাকগ্রাউন্ড সম্পূর্ণ ক্লিন করে নতুন থিম অ্যাপ্লাই করার লজিক
+        if (t.isFestival) {
+            document.body.style.background = t.bg;
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center';
+            document.body.style.backgroundAttachment = 'fixed';
+            document.body.classList.add('festival-glass-active');
+        } else {
+            // সাধারণ থিমের ক্ষেত্রে ইমেজ মুছে সলিড কালার দেওয়া হচ্ছে
+            document.body.style.background = t.bg;
+            document.body.style.backgroundImage = 'none'; 
+            document.body.classList.remove('festival-glass-active');
+        }
+        
+        // লাইভ ইফেক্ট কন্ট্রোল (স্নো / বাজি)
+        handleLiveEffects(t.effect);
+        
+        localStorage.setItem('starThemeMasterV4', index);
+        document.getElementById('themeModal').style.display = 'none';
+        
+        if (typeof showToast === "function") {
+            showToast('থিম সফলভাবে অ্যাপ্লাই করা হয়েছে!');
+        }
+    }
+
+    // ==========================================
+    // LIVE EFFECTS LOGIC
+    // ==========================================
+    function handleLiveEffects(effectType) {
+        const container = document.getElementById('themeEffectContainer');
+        container.innerHTML = ''; 
+        if (currentEffectInterval) clearInterval(currentEffectInterval);
+        
+        if (effectType === 'none') {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+
+        if (effectType === 'snow') {
+            // ৪০টি স্নোফ্লেক (Snowflakes) তৈরি করা
+            for (let i = 0; i < 40; i++) {
+                let flake = document.createElement('div');
+                flake.className = 'snowflake';
+                let size = Math.random() * 4 + 2; 
+                flake.style.width = size + 'px';
+                flake.style.height = size + 'px';
+                flake.style.left = Math.random() * 100 + 'vw';
+                flake.style.animationDuration = (Math.random() * 3 + 2) + 's'; 
+                flake.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(flake);
+            }
+        } 
+        else if (effectType === 'fireworks') {
+            // প্রতি ৮০০ মিলি-সেকেন্ডে বাজি ফোটানো
+            currentEffectInterval = setInterval(() => {
+                let firework = document.createElement('div');
+                firework.className = 'firework';
+                firework.style.left = (Math.random() * 80 + 10) + 'vw'; 
+                
+                const colors = ['#ffcf40', '#ff004c', '#00f2fe', '#43e97b', '#b06ab3'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                firework.style.background = color;
+                container.appendChild(firework);
+
+                // উপরে গিয়ে বাজি ফাটার ইফেক্ট
+                setTimeout(() => {
+                    firework.style.opacity = '0';
+                    let explosion = document.createElement('div');
+                    explosion.className = 'explosion';
+                    explosion.style.left = firework.style.left;
+                    explosion.style.top = '35vh'; 
+                    explosion.style.width = '10px';
+                    explosion.style.height = '10px';
+                    explosion.style.boxShadow = `0 0 50px 20px ${color}`;
+                    container.appendChild(explosion);
+                    
+                    setTimeout(() => {
+                        firework.remove();
+                        explosion.remove();
+                    }, 800);
+                }, 1000);
+            }, 800);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // রিলোড করার পর সেভ করা থিমটি লোড করা
+        const savedTheme = localStorage.getItem('starThemeMasterV4');
+        if (savedTheme !== null && allThemesData[savedTheme]) {
+            changeAppTheme(savedTheme);
+        }
+
+        // সাইডবার মেনুতে (Delete Account এর ঠিক আগে) থিম অপশন যুক্ত করা
+        setTimeout(() => {
+            const sidebarMenu = document.getElementById('sidebarMenu');
+            if (sidebarMenu) {
+                const themeBtnHtml = `<div class="sidebar-item" onclick="toggleSidebar(); openThemeModal()"><i class="fas fa-palette" style="color:#00f2fe;"></i> থিম কাস্টমাইজেশন</div>`;
+                const items = sidebarMenu.getElementsByClassName('sidebar-item');
+                let deleteNode = null;
+                
+                for(let i=0; i<items.length; i++) {
+                    if(items[i].innerHTML.includes('ডিলিট একাউন্ট') || items[i].innerHTML.includes('Delete Account')) {
+                        deleteNode = items[i];
+                        break;
+                    }
+                }
+                
+                if(deleteNode) {
+                    deleteNode.insertAdjacentHTML('beforebegin', themeBtnHtml);
+                } else {
+                    sidebarMenu.insertAdjacentHTML('beforeend', themeBtnHtml);
+                }
+            }
+        }, 1200);
+    });
+</script>
+<!-- ========================================== -->
+<!-- END OF STAR FINANCE THEME MODULE           -->
+<!-- ========================================== -->
+
 </body>
 </html>
