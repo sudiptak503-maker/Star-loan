@@ -1,6 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- ================= [ PRO MEGA SPLASH SCREEN ANIMATION ] ================= -->
+<style>
+  /* স্প্ল্যাশ স্ক্রিনের ব্যাকগ্রাউন্ড ও লেআউট */
+  #megaSplash {
+    position: fixed; inset: 0; background: #050508; z-index: 999999999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* ব্যাকগ্রাউন্ড গ্লো ইফেক্ট */
+  .splash-bg-glow {
+    position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(0,242,254,0.15) 0%, transparent 70%);
+    border-radius: 50%; animation: pulseGlow 4s infinite alternate; top: 10%; left: 50%; transform: translateX(-50%);
+  }
+  .splash-bg-glow-gold {
+    position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(255,215,0,0.1) 0%, transparent 70%);
+    border-radius: 50%; animation: pulseGlowGold 5s infinite alternate-reverse; bottom: -10%; left: 50%; transform: translateX(-50%);
+  }
+
+  /* লোগো অ্যানিমেশন */
+  .splash-logo-container {
+    position: relative; z-index: 2; display: flex; align-items: center; justify-content: center;
+    width: 130px; height: 130px; border-radius: 50%; background: linear-gradient(145deg, #111, #1a1a24);
+    box-shadow: 0 0 50px rgba(0, 242, 254, 0.5), inset 0 0 25px rgba(255, 215, 0, 0.3);
+    animation: floatLogo 4s ease-in-out infinite, popIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    margin-bottom: 25px; transform: scale(0);
+  }
+  .splash-logo-container i {
+    font-size: 60px; background: linear-gradient(135deg, #00f2fe, #4facfe); 
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,242,254,0.6));
+  }
+
+  /* টেক্সট অ্যানিমেশন */
+  .splash-title {
+    position: relative; z-index: 2; font-size: 42px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(to right, #FFD700, #FFF8DC, #FFA500, #FFD700); background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: shineText 3s linear infinite, slideUpTitle 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    opacity: 0; transform: translateY(40px);
+    text-align: center;
+  }
+  .splash-subtitle {
+    position: relative; z-index: 2; color: #00f2fe; font-size: 13px; font-weight: bold; letter-spacing: 3px; margin-top: 12px;
+    text-transform: uppercase; opacity: 0; animation: fadeInSub 1.5s ease-out 0.8s forwards;
+    text-shadow: 0 0 10px rgba(0,242,254,0.4);
+  }
+
+  /* ভাসমান ম্যাজিক পার্টিকেলস */
+  .particles { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .particle {
+    position: absolute; border-radius: 50%; opacity: 0;
+    animation: floatUp 4s infinite ease-in;
+  }
+
+  /* কাস্টম কি-ফ্রেমস */
+  @keyframes popIn { to { transform: scale(1); } }
+  @keyframes pulseGlow { 0% { transform: translateX(-50%) scale(0.8); opacity: 0.5; } 100% { transform: translateX(-50%) scale(1.5); opacity: 1; } }
+  @keyframes pulseGlowGold { 0% { transform: translateX(-50%) scale(1); opacity: 0.3; } 100% { transform: translateX(-50%) scale(1.8); opacity: 0.8; } }
+  @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); box-shadow: 0 0 70px rgba(0, 242, 254, 0.8), inset 0 0 35px rgba(255, 215, 0, 0.5); } }
+  @keyframes shineText { to { background-position: 200% center; } }
+  @keyframes slideUpTitle { to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeInSub { 0% { opacity: 0; letter-spacing: 3px; } 100% { opacity: 1; letter-spacing: 6px; } }
+  @keyframes floatUp { 0% { transform: translateY(100vh) scale(0); opacity: 0; } 50% { opacity: 0.8; } 100% { transform: translateY(-10vh) scale(1.5); opacity: 0; } }
+</style>
+
+<div id="megaSplash">
+  <!-- ব্যাকগ্রাউন্ড গ্লো -->
+  <div class="splash-bg-glow"></div>
+  <div class="splash-bg-glow-gold"></div>
+  
+  <!-- ম্যাজিক পার্টিকেলস কন্টেইনার -->
+  <div class="particles" id="splashParticles"></div>
+
+  <!-- লোগো এবং টেক্সট -->
+  <div class="splash-logo-container">
+    <i class="fas fa-shield-alt"></i>
+  </div>
+  <div class="splash-title">STAR FINANCE</div>
+  <div class="splash-subtitle">Premium Loan & FD Services</div>
+  
+  <!-- সিনেমাটিক সাউন্ড ইফেক্ট -->
+  <audio id="splashSound" preload="auto">
+    <!-- এখানে একটি রয়্যালটি-ফ্রি ম্যাজিক/সিনেমাটিক চিম সাউন্ড দেওয়া হয়েছে -->
+    <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_793b58f8b1.mp3" type="audio/mpeg">
+  </audio>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+      const splash = document.getElementById('megaSplash');
+      const sound = document.getElementById('splashSound');
+      const particleContainer = document.getElementById('splashParticles');
+      
+      // ডাইনামিক পার্টিকেল জেনারেটর (সোনালী এবং নীল রঙের তারা ভাসবে)
+      for(let i = 0; i < 40; i++) {
+          let p = document.createElement('div');
+          p.className = 'particle';
+          let size = Math.random() * 4 + 2;
+          p.style.width = size + 'px';
+          p.style.height = size + 'px';
+          p.style.left = Math.random() * 100 + 'vw';
+          p.style.animationDuration = (Math.random() * 3 + 2) + 's';
+          p.style.animationDelay = Math.random() * 2 + 's';
+          
+          let isGold = Math.random() > 0.5;
+          p.style.background = isGold ? '#FFD700' : '#00f2fe';
+          p.style.boxShadow = isGold ? '0 0 15px #FFD700' : '0 0 15px #00f2fe';
+          particleContainer.appendChild(p);
+      }
+
+      // সাউন্ড প্লে করার কমান্ড (অ্যান্ড্রয়েড অ্যাপ বা ওয়েবভিউতে সাউন্ড নিজে থেকেই বাজবে)
+      sound.volume = 0.5; // ভলিউম ৫০% সেট করা হয়েছে যাতে শ্রুতিমধুর লাগে
+      let playPromise = sound.play();
+      if (playPromise !== undefined) {
+          playPromise.catch(error => {
+              console.log("Browser Auto-play Policy Blocked Sound. Animation will continue.");
+          });
+      }
+
+      // ৪ সেকেন্ড পর স্ক্রিনটিকে ফেড আউট করে সরিয়ে দেওয়া হবে
+      setTimeout(() => {
+          splash.style.opacity = '0';
+          splash.style.transform = 'scale(1.15)'; // যাওয়ার সময় একটু বড় হয়ে মিলিয়ে যাবে
+          
+          setTimeout(() => {
+              splash.remove();
+          }, 800); // ফেড আউট ট্রানজিশনের সময়
+      }, 4000);
+  });
+</script>
+<!-- ================= [ END PRO MEGA SPLASH SCREEN ANIMATION ] ================= -->
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1a1a2e">
@@ -296,12 +429,27 @@
         <div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
       </div>
     </div>
+          <!-- Trusted Loan Card -->
+      <div id="trustedLoanCard" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%); border-radius: 20px; padding: 30px 20px; text-align: center; margin-top: 25px; box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4); position: relative; overflow: hidden;">
+          <div style="position: absolute; top: 15px; right: -30px; background: #000; color: #FFD700; padding: 5px 40px; transform: rotate(45deg); font-size: 11px; font-weight: 900; letter-spacing: 2px;">VIP</div>
+          <h3 style="color: #000; font-size: 24px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase;"><i class="fas fa-crown"></i> Trusted Loan</h3>
+          <p style="color: #222; font-size: 14px; font-weight: bold; margin-bottom: 20px; line-height: 1.5;">Exclusive Premium Loan (₹5,000 - ₹10,000)<br>Requires 900 CIBIL Score To Unlock</p>
+          <button onclick="openTrustedLoan()" style="background: #000; color: #FFD700; border: 2px solid #000; padding: 12px 30px; border-radius: 30px; font-size: 16px; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">Apply Now</button>
+      </div>
 
     <!-- ADMIN PANEL -->
     <div id="adminScreen" class="page-screen">
       <div class="page-header" style="justify-content:center;">
         <h3 style="color:var(--danger); font-size:26px;"><i class="fas fa-user-shield"></i> Admin Dashboard</h3>
       </div>
+             <!-- নতুন দুটি বাটন -->
+        <div class="admin-card" onclick="openAdminModal('analytics')" style="border-color:#9b59b6; background: rgba(155, 89, 182, 0.05); grid-column: 1 / span 2;">
+            <i class="fas fa-chart-pie" style="color:#9b59b6;"></i><h4 style="font-size:14px;">Financial Analytics</h4>
+        </div>
+        <div class="admin-card" onclick="openAdminModal('activeLoans')" style="border-color:#e67e22; background: rgba(230, 126, 34, 0.05); grid-column: 1 / span 2;">
+            <i class="fas fa-users" style="color:#e67e22;"></i><h4 style="font-size:14px;">Active Loan Users</h4>
+        </div>
+
       <div class="admin-grid">
         <div class="admin-card" onclick="openAdminModal('wallet')">
             <i class="fas fa-wallet" style="color:var(--primary);"></i><h4 style="font-size:14px;">Wallet Add</h4>
@@ -326,6 +474,9 @@
         </div>
         <div class="admin-card" onclick="openAdminFeedback()" style="border-color:#b2d942; background: rgba(178, 217, 66, 0.05); grid-column: 1 / span 2;">
             <i class="fas fa-envelope-open-text" style="color:#b2d942;"></i><h4 style="font-size:14px;">Feedback & Support</h4>
+        </div>
+                <div class="admin-card" onclick="openAdminModal('trustedLoan')" style="border-color:#FFD700; grid-column: 1 / span 2; background:linear-gradient(145deg, rgba(255,215,0,0.1), rgba(0,0,0,0.5));">
+            <i class="fas fa-crown" style="color:#FFD700;"></i><h4 style="font-size:14px; color:#FFD700;">Trusted Loan Requests</h4>
         </div>
       </div>
     </div>
@@ -2535,414 +2686,290 @@
           showToast(error.message);
       }
   };
-
 </script>
-<!-- মেগা মেনুবার ও নতুন ফিচার শর্টকাট শেষ -->
-<!-- স্প্ল্যাশ স্ক্রিন এবং লাইভ আপডেট শর্টকাট শুরু -->
-<style>
-  /* Splash Screen Styles */
-  #splashScreen {
-      position: fixed; 
-      inset: 0; 
-      background: radial-gradient(circle at center, #151520, #0a0a0f); 
-      z-index: 999999999;
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center;
-      transition: opacity 0.5s ease-out, visibility 0.5s;
-  }
-  .splash-logo {
-      font-size: 70px; 
-      color: var(--primary); 
-      margin-bottom: 25px;
-      animation: pulseSplash 1.5s infinite alternate;
-  }
-  .splash-text {
-      font-size: 28px; 
-      font-weight: 800; 
-      color: #fff; 
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      animation: slideUpFade 1s forwards;
-  }
-  .splash-loader {
-      width: 45px; 
-      height: 45px; 
-      border: 4px solid rgba(0,242,254,0.1);
-      border-top: 4px solid var(--primary); 
-      border-radius: 50%;
-      margin-top: 40px; 
-      animation: spinLoader 1s linear infinite;
-  }
-  .splash-sync-text {
-      color: var(--primary); 
-      font-size: 13px; 
-      margin-top: 20px;
-      letter-spacing: 1px;
-      animation: blinkText 1.5s infinite;
-  }
+<!-- ================= [ NEW TRUSTED LOAN MODALS & LOGIC ] ================= -->
+<div id="tlModalsContainer">
+    <!-- CIBIL Not Eligible Modal -->
+    <div id="tlCibilModal" class="admin-modal-overlay" style="z-index:9000;">
+        <div class="admin-modal-box" style="text-align:center; border: 2px solid #FFD700; background: #151520;">
+            <button class="close-modal" onclick="document.getElementById('tlCibilModal').style.display='none'"><i class="fas fa-times"></i></button>
+            <i class="fas fa-lock fa-3x" style="color:var(--danger); margin-bottom:15px;"></i>
+            <h3 style="color:var(--danger); margin-bottom:10px;">CIBIL Score Too Low</h3>
+            <p style="font-size:14px; color:#ddd; margin-bottom:15px;">Trusted Loan Unlock করার জন্য আপনার <strong style="color:#FFD700;">900 CIBIL Score</strong> প্রয়োজন।</p>
+            <div style="background:rgba(0,0,0,0.5); padding:15px; border-radius:12px; border:1px dashed #FFD700; text-align:left; font-size:13px; color:#aaa; line-height:1.6;">
+                <strong style="color:var(--success);">কীভাবে CIBIL Score বাড়াবেন?</strong><br><br>
+                ১. ছোট লোন (Small Loan/Basic Loan) নিন এবং সময়মতো শোধ করুন।<br>
+                ২. প্রতিটি কিস্তি (EMI) সফলভাবে দিলে <strong>+30 CIBIL</strong> বাড়বে।<br>
+                ৩. কোনো পেনাল্টি বা ডিউ না রাখলে সিভিল দ্রুত 900 এ পৌঁছাবে।
+            </div>
+            <button class="auth-btn" style="background:#333; margin-top:15px; color:#fff;" onclick="document.getElementById('tlCibilModal').style.display='none'">Okay, I Understand</button>
+        </div>
+    </div>
 
-  @keyframes pulseSplash { 
-      0% { transform: scale(0.95); text-shadow: 0 0 10px rgba(0,242,254,0.4); } 
-      100% { transform: scale(1.1); text-shadow: 0 0 40px rgba(0,242,254,1); } 
-  }
-  @keyframes slideUpFade { 
-      0% { opacity: 0; transform: translateY(30px); } 
-      100% { opacity: 1; transform: translateY(0); } 
-  }
-  @keyframes spinLoader { 100% { transform: rotate(360deg); } }
-  @keyframes blinkText { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-</style>
-
-<!-- Splash Screen HTML -->
-<div id="splashScreen">
-    <i class="fas fa-shield-alt splash-logo"></i>
-    <div class="splash-text">Star Finance</div>
-    <div class="splash-loader"></div>
-    <div class="splash-sync-text">Syncing Secure Data...</div>
+    <!-- Trusted Loan Apply Modal -->
+    <div id="tlApplyModal" class="admin-modal-overlay" style="z-index:9000;">
+        <div class="admin-modal-box" style="border: 2px solid #FFD700; background: #151520;">
+            <button class="close-modal" onclick="document.getElementById('tlApplyModal').style.display='none'"><i class="fas fa-times"></i></button>
+            <h3 style="color:#FFD700; margin-bottom:15px; text-align:center;"><i class="fas fa-crown"></i> Trusted Loan</h3>
+            
+            <div class="loan-slider-container" style="background:#000;">
+                <label style="color:#FFD700;">Select Amount (₹5000 - ₹10000)</label>
+                <input type="range" min="5000" max="10000" step="1000" value="5000" id="tlAmountSlider" oninput="updateTlPreview()">
+                <div class="selected-amount" style="color:#FFD700;">₹<span id="tlAmountView">5000</span></div>
+            </div>
+            
+            <label style="color:#ddd; font-size:14px; margin-top:15px; display:block;">Select Duration</label>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+                <button class="btn-outline" style="flex:1; margin:0;" id="tlBtn3" onclick="selectTlDuration(3)">3 Months (15%)</button>
+                <button class="btn-outline" style="flex:1; margin:0; border-color:#555; color:#555;" id="tlBtn6" onclick="selectTlDuration(6)">6 Months (30%)</button>
+            </div>
+            
+            <div style="background:#0a0a0f; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333; font-size:14px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Principal:</span> <strong>₹<span id="tlPrincipal">5000</span></strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Interest:</span> <strong style="color:#FFD700;">+ ₹<span id="tlInterest">750</span></strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Platform Fee (3%):</span> <strong style="color:var(--danger);">- ₹<span id="tlFee">150</span></strong></div>
+                <hr style="border:0; border-top:1px dashed #444; margin:10px 0;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>To Bank/Wallet:</span> <strong style="color:var(--success); font-size:16px;">₹<span id="tlReceive">4850</span></strong></div>
+                <div style="display:flex; justify-content:space-between;"><span>Monthly EMI:</span> <strong style="color:#00f2fe; font-size:16px;">₹<span id="tlEmi">1917</span></strong></div>
+            </div>
+            
+            <button class="auth-btn" style="background:linear-gradient(135deg, #FFD700, #FFA500); color:#000; margin-top:15px;" onclick="submitTrustedLoan()"><i class="fas fa-paper-plane"></i> Submit Request</button>
+        </div>
+    </div>
 </div>
 
 <script>
-  // ১. ৬ সেকেন্ডের স্প্ল্যাশ স্ক্রিন লজিক
-  window.addEventListener('load', () => {
-      // ব্যাকগ্রাউন্ডে ফায়ারবেস ডেটা সিঙ্ক হতে থাকবে। ৬ সেকেন্ড পর এটি বন্ধ হবে।
-      setTimeout(() => {
-          const splash = document.getElementById('splashScreen');
-          if (splash) {
-              splash.style.opacity = '0'; // ফেড আউট
-              setTimeout(() => {
-                  splash.style.visibility = 'hidden';
-                  splash.style.display = 'none'; // পুরোপুরি সরিয়ে দেওয়া
-              }, 500);
-          }
-      }, 6000); // ঠিক ৬ সেকেন্ড (6000ms)
-  });
+// ১. থিম রিমুভ (অটোমেটিক চলবে)
+(function removeThemeFeatures() {
+    const sidebarItems = document.querySelectorAll('.sidebar-item');
+    sidebarItems.forEach(item => {
+        if(item.innerHTML.includes('themeModal') || item.innerHTML.includes('Theme')) {
+            item.remove();
+        }
+    });
+    const themeModal = document.getElementById('themeModal');
+    if(themeModal) themeModal.remove();
+    document.body.className = ''; 
+})();
 
-  // ২. ইন-অ্যাপ লাইভ আপডেট (In-App Update) সিস্টেম
-  let updateTriggered = false;
+// ২. Trusted Loan Logic
+let tlSelectedMonths = 3;
 
-  // সিস্টেম সেটিংস-এ নজর রাখা (Real-time listener)
-  db.collection('system').doc('app_settings').onSnapshot(doc => {
-      if (doc.exists) {
-          const data = doc.data();
-          // যদি অ্যাডমিন নতুন আপডেট পুশ করে
-          if (data.forceUpdateTimestamp && !updateTriggered) {
-              // প্রথমবার লোড হওয়ার সময় রিলোড আটকাতে বর্তমান সময় চেক করা হচ্ছে
-              if (Date.now() - data.forceUpdateTimestamp < 10000) { 
-                  updateTriggered = true;
-                  showToast('App is updating with new features... Please wait.');
-                  Buffer.show('Applying Live Updates...');
-                  
-                  // ২ সেকেন্ড পর অ্যাপটি স্বয়ংক্রিয়ভাবে রিলোড হবে নতুন ডেটা সহ
-                  setTimeout(() => {
-                      window.location.reload(true);
-                  }, 2500);
-              }
-          }
-      }
-  });
+window.openTrustedLoan = function() {
+    if(!currentUserData) return showToast('Please login to apply');
+    
+    const cibil = currentUserData.cibilScore || 0;
+    if(cibil < 900) {
+        document.getElementById('tlCibilModal').style.display = 'flex';
+    } else {
+        if(currentUserData.loanStatus === 'active' || currentUserData.loanStatus === 'pending') {
+            return showToast('You already have an active or pending loan!');
+        }
+        if(!currentUserData.loanKYC || !currentUserData.loanKYC.name) {
+            return showToast('Please complete KYC profile first from Loan Section!');
+        }
+        document.getElementById('tlApplyModal').style.display = 'flex';
+        selectTlDuration(3);
+    }
+};
 
-  // অ্যাডমিন প্যানেল থেকে গ্লোবাল আপডেট ট্রিগার করার ফাংশন
-  window.triggerGlobalUpdate = function() {
-      customConfirm('Push live update to all users?').then(isConfirm => {
-          if (!isConfirm) return;
-          Buffer.show('Pushing Update...');
-          db.collection('system').doc('app_settings').set({ 
-              forceUpdateTimestamp: Date.now() 
-          }, { merge: true }).then(() => {
-              Buffer.hide();
-              showToast('Live Update pushed successfully to all active devices!');
-          }).catch(e => {
-              Buffer.hide();
-              showToast('Update Failed: ' + e.message);
-          });
-      });
-  };
+window.selectTlDuration = function(months) {
+    tlSelectedMonths = months;
+    document.getElementById('tlBtn3').style.borderColor = months === 3 ? '#FFD700' : '#555';
+    document.getElementById('tlBtn3').style.color = months === 3 ? '#FFD700' : '#555';
+    document.getElementById('tlBtn6').style.borderColor = months === 6 ? '#FFD700' : '#555';
+    document.getElementById('tlBtn6').style.color = months === 6 ? '#FFD700' : '#555';
+    updateTlPreview();
+};
 
-  // অ্যাডমিন ড্যাশবোর্ডে "Push Live Update" বাটন যুক্ত করা
-  auth.onAuthStateChanged(user => {
-      if (user && (user.email === 'star@gmail.com' || user.email === 'Star@gmail.com')) {
-          setTimeout(() => {
-              const adminGrid = document.querySelector('.admin-grid');
-              // নিশ্চিত করা হচ্ছে যে বাটনটি দুবার যুক্ত না হয়
-              if (adminGrid && !document.getElementById('liveUpdateBtn')) {
-                  adminGrid.innerHTML += `
-                  <div class="admin-card" id="liveUpdateBtn" onclick="triggerGlobalUpdate()" style="border-color:#3498db; background: linear-gradient(145deg, rgba(52, 152, 219, 0.15), rgba(0,0,0,0.6));">
-                      <i class="fas fa-sync-alt" style="color:#3498db;"></i>
-                      <h4 style="font-size:14px;">Push Live Update</h4>
-                  </div>`;
-              }
-          }, 1500);
-      }
-  });
+window.updateTlPreview = function() {
+    const amt = parseInt(document.getElementById('tlAmountSlider').value);
+    document.getElementById('tlAmountView').innerText = amt;
+    document.getElementById('tlPrincipal').innerText = amt;
+    
+    const intRate = tlSelectedMonths === 3 ? 0.15 : 0.30;
+    const interest = amt * intRate;
+    document.getElementById('tlInterest').innerText = interest.toFixed(0);
+    
+    const fee = amt * 0.03; // 3% platform fee
+    document.getElementById('tlFee').innerText = fee.toFixed(0);
+    
+    const receive = amt - fee;
+    document.getElementById('tlReceive').innerText = receive.toFixed(0);
+    
+    const totalPayable = amt + interest;
+    const emi = Math.ceil(totalPayable / tlSelectedMonths);
+    document.getElementById('tlEmi').innerText = emi;
+};
+
+window.submitTrustedLoan = async function() {
+    const amt = parseInt(document.getElementById('tlAmountSlider').value);
+    const intRate = tlSelectedMonths === 3 ? 0.15 : 0.30;
+    const fee = amt * 0.03;
+    const receive = amt - fee;
+    const loanType = 'trusted_' + tlSelectedMonths;
+
+    const isConfirm = await customConfirm(`Apply for ₹${amt} Trusted Loan? You will receive ₹${receive.toFixed(0)} after 3% platform fee deduction.`);
+    if(!isConfirm) return;
+    
+    Buffer.show('Submitting...');
+    try {
+        await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+        
+        await db.collection('admin_requests').add({
+            uid: currentUserData.uid, 
+            name: currentUserData.fullname,
+            kyc: currentUserData.loanKYC || {},
+            amount: amt, 
+            receiveAmount: receive,
+            type: 'trustedLoan', 
+            loanType: loanType,
+            interest: intRate, 
+            fee: fee,
+            status: 'pending', 
+            timestamp: Date.now()
+        });
+        
+        Buffer.hide(); 
+        document.getElementById('tlApplyModal').style.display = 'none';
+        showToast('Trusted Loan request sent to admin!');
+        openPage('homeScreen');
+    } catch(e) { 
+        Buffer.hide(); showToast('Error: '+e.message); 
+    }
+};
+
+// ৩. Fix Admin Buttons (Active Loans, Analytics, Trusted Loan)
+const existingOpenAdminModalLogic = window.openAdminModal;
+
+window.openAdminModal = function(type) {
+    // Trusted Loan Admin View
+    if(type === 'trustedLoan') {
+        document.getElementById('adminModalOverlay').style.display = 'flex';
+        const body = document.getElementById('adminModalBody');
+        document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-crown" style="color:#FFD700;"></i> Trusted Loan Requests';
+        body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        
+        db.collection('admin_requests').where('type','==','trustedLoan').where('status','==','pending').get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const d = doc.data();
+                html += `
+                <div class="admin-req-item" style="border-left:4px solid #FFD700;">
+                    <strong style="color:#FFD700; font-size:16px;"><i class="fas fa-user"></i> ${d.name}</strong><br>
+                    <div style="font-size:12px; color:#aaa; margin-top:5px;">UPI/Bank: <span style="color:#fff;">${d.kyc.upiAc || 'N/A'}</span> | Phone: ${d.kyc.phone || 'N/A'}</div>
+                    <div style="background:#000; padding:10px; border-radius:8px; margin-top:8px; font-size:13px; color:#ddd;">
+                        <strong>Loan Amount:</strong> ₹${d.amount} (${d.loanType.split('_')[1]} Months)<br>
+                        <strong>Platform Fee:</strong> <span style="color:var(--danger);">-₹${d.fee.toFixed(0)}</span><br>
+                        <strong>Pay to User:</strong> <span style="color:var(--success); font-size:16px; font-weight:bold;">₹${d.receiveAmount.toFixed(0)}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-approve" onclick="adminApprove('${doc.id}', '${d.uid}', 'loan', ${d.amount}, '${d.loanType}', ${d.interest})">Approve & Start</button>
+                        <button class="btn-reject" onclick="adminReject('${doc.id}', '${d.uid}', 'trustedLoan')">Reject</button>
+                    </div>
+                </div>`;
+            });
+            body.innerHTML = html || '<div style="text-align:center;color:#aaa;">No pending trusted loans</div>';
+        });
+        return;
+    }
+
+    // Active Loans FIX
+    if(type === 'activeLoans') {
+        document.getElementById('adminModalOverlay').style.display = 'flex';
+        const body = document.getElementById('adminModalBody');
+        document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-users" style="color:#e67e22;"></i> Active Loan Users';
+        body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        
+        db.collection('users').where('loanStatus','in',['active', 'default']).get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const u = doc.data();
+                if(u.activeLoan) {
+                    const due = u.activeLoan.amount + (u.activeLoan.amount * u.activeLoan.interest) + (u.activeLoan.penalty || 0);
+                    const paid = u.activeLoan.paid || 0;
+                    const daysLeft = Math.floor((u.activeLoan.dueDate - Date.now())/(1000*60*60*24));
+                    html += `
+                    <div class="admin-req-item" style="border-left:4px solid #e67e22;">
+                        <strong style="color:#fff;">${u.fullname}</strong> <span style="color:#aaa; font-size:12px;">(@${u.username})</span><br>
+                        <div style="display:flex; justify-content:space-between; font-size:13px; margin-top:8px;">
+                            <span style="color:#bbb;">Total Remaining:</span> <span style="color:var(--danger); font-weight:bold;">₹${(due-paid).toFixed(0)}</span>
+                        </div>
+                        <div style="font-size:12px; color:#aaa; margin-top:5px;">
+                            Paid: ₹${paid.toFixed(0)} | Status: ${daysLeft < 0 ? `<span style="color:var(--danger);font-weight:bold;">Overdue (${Math.abs(daysLeft)} days)</span>` : `<span style="color:var(--success);">${daysLeft} days left</span>`}
+                        </div>
+                    </div>`;
+                }
+            });
+            body.innerHTML = html || '<div style="text-align:center;color:#aaa;">No active loans found.</div>';
+        });
+        return;
+    }
+
+    // Financial Analytics FIX
+    if(type === 'analytics') {
+        document.getElementById('adminModalOverlay').style.display = 'flex';
+        const body = document.getElementById('adminModalBody');
+        document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-chart-pie" style="color:#9b59b6;"></i> Financial Analytics';
+        body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i> Loading Data...</div>';
+        
+        db.collection('users').get().then(snap => {
+            let totalUsers = 0, totalWallet = 0, totalGivenLoans = 0, totalPendingLoans = 0, totalFD = 0;
+            
+            snap.forEach(doc => {
+                const u = doc.data();
+                if(u.role !== 'admin') totalUsers++;
+                totalWallet += (parseFloat(u.wallet) || 0);
+                if(u.activeLoan && (u.loanStatus === 'active' || u.loanStatus === 'default')) totalGivenLoans += (u.activeLoan.amount || 0);
+                if(u.fds && u.fds.length > 0) u.fds.forEach(fd => totalFD += fd.amount);
+            });
+            
+            db.collection('admin_requests').where('status','==','pending').get().then(reqSnap => {
+                reqSnap.forEach(r => {
+                    const d = r.data();
+                    if(d.type === 'loan' || d.type === 'smallLoan' || d.type === 'trustedLoan') {
+                        totalPendingLoans += (d.amount || 0);
+                    }
+                });
+                
+                const html = `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div style="background:rgba(52, 152, 219,0.1); border:1px solid #3498db; padding:15px; border-radius:12px; text-align:center;">
+                        <i class="fas fa-users fa-2x" style="color:#3498db; margin-bottom:10px;"></i>
+                        <div style="font-size:24px; font-weight:bold; color:#fff;">${totalUsers}</div>
+                        <div style="font-size:12px; color:#aaa;">Total Users</div>
+                    </div>
+                    <div style="background:rgba(46, 204, 113,0.1); border:1px solid #2ecc71; padding:15px; border-radius:12px; text-align:center;">
+                        <i class="fas fa-wallet fa-2x" style="color:#2ecc71; margin-bottom:10px;"></i>
+                        <div style="font-size:20px; font-weight:bold; color:#fff;">₹${totalWallet.toFixed(0)}</div>
+                        <div style="font-size:12px; color:#aaa;">Total Wallet Bal</div>
+                    </div>
+                    <div style="background:rgba(231, 76, 60,0.1); border:1px solid #e74c3c; padding:15px; border-radius:12px; text-align:center;">
+                        <i class="fas fa-hand-holding-usd fa-2x" style="color:#e74c3c; margin-bottom:10px;"></i>
+                        <div style="font-size:20px; font-weight:bold; color:#fff;">₹${totalGivenLoans.toFixed(0)}</div>
+                        <div style="font-size:12px; color:#aaa;">Active Loans</div>
+                    </div>
+                    <div style="background:rgba(241, 196, 15,0.1); border:1px solid #f1c40f; padding:15px; border-radius:12px; text-align:center;">
+                        <i class="fas fa-piggy-bank fa-2x" style="color:#f1c40f; margin-bottom:10px;"></i>
+                        <div style="font-size:20px; font-weight:bold; color:#fff;">₹${totalFD.toFixed(0)}</div>
+                        <div style="font-size:12px; color:#aaa;">Total FDs</div>
+                    </div>
+                    <div style="background:rgba(155, 89, 182,0.1); border:1px solid #9b59b6; padding:15px; border-radius:12px; text-align:center; grid-column:1 / span 2;">
+                        <i class="fas fa-hourglass-half fa-2x" style="color:#9b59b6; margin-bottom:10px;"></i>
+                        <div style="font-size:20px; font-weight:bold; color:#fff;">₹${totalPendingLoans.toFixed(0)}</div>
+                        <div style="font-size:12px; color:#aaa;">Pending Loan Requests</div>
+                    </div>
+                </div>`;
+                body.innerHTML = html;
+            });
+        });
+        return;
+    }
+
+    // Call original function for others
+    existingOpenAdminModalLogic(type);
+};
 </script>
-<!-- স্প্ল্যাশ স্ক্রিন এবং লাইভ আপডেট শর্টকাট শেষ -->
-<!-- আলটিমেট সিজনাল অটো-থিম এবং প্রিমিয়াম অ্যানিমেশন শর্টকাট শুরু -->
-<style>
-  /* --- প্রিমিয়াম স্প্ল্যাশ স্ক্রিন --- */
-  #seasonalSplash {
-      position: fixed; inset: 0; z-index: 999999999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      transition: opacity 0.8s ease-out, visibility 0.8s;
-      background: #0a0a0f; /* ডিফল্ট ব্যাকগ্রাউন্ড */
-  }
-  .s-logo { font-size: 85px; margin-bottom: 25px; }
-  .s-text { font-size: 34px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
-  .s-sub { font-size: 15px; margin-top: 12px; letter-spacing: 5px; font-weight: bold; }
-  
-  .loader-ring {
-      margin-top: 35px; width: 45px; height: 45px; border-radius: 50%;
-      border: 4px solid rgba(255,255,255,0.1); border-top-color: #fff;
-      animation: spinLoader 1s linear infinite;
-  }
-
-  /* ১. Independence Splash (আগস্টের জন্য) */
-  .splash-ind { background: radial-gradient(circle at center, #0a1f0f, #050a07) !important; }
-  .splash-ind .s-logo { color: #138808; animation: spinChakra 5s linear infinite; filter: drop-shadow(0 0 25px rgba(19,136,8,0.9)); }
-  .splash-ind .s-text { background: linear-gradient(90deg, #FF9933 0%, #FFFFFF 50%, #138808 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  
-  /* ২. Winter Splash (শীতের জন্য) */
-  .splash-win { background: radial-gradient(circle at center, #0a192f, #020c1b) !important; }
-  .splash-win .s-logo { color: #00f2fe; animation: pulseSnow 2s infinite alternate; filter: drop-shadow(0 0 25px #00f2fe); }
-  .splash-win .s-text { color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
-
-  /* ৩. Xmas Splash (ডিসেম্বর-জানুয়ারির জন্য) */
-  .splash-xmas { background: radial-gradient(circle at center, #2c1212, #0a0a0f) !important; }
-  .splash-xmas .s-logo { color: #e74c3c; animation: bounceTree 2s infinite; filter: drop-shadow(0 0 25px #e74c3c); }
-  .splash-xmas .s-text { color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.9); }
-
-  @keyframes spinChakra { 100% { transform: rotate(360deg); } }
-  @keyframes pulseSnow { 0% { transform: scale(0.9); } 100% { transform: scale(1.15); } }
-  @keyframes bounceTree { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-  @keyframes spinLoader { 100% { transform: rotate(360deg); } }
-
-  /* --- ইন-অ্যাপ প্রিমিয়াম পার্টিকেলস (ভেতরের ইফেক্ট) --- */
-  #premiumParticles { position: fixed; inset: 0; pointer-events: none; z-index: 9998; overflow: hidden; }
-  
-  /* Independence Ribbon */
-  .ribbon { position: absolute; width: 6px; height: 30px; border-radius: 3px; animation: fallRibbon linear infinite; opacity: 0.8; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
-  @keyframes fallRibbon { 
-      0% { transform: translateY(-10vh) rotate(0deg) scale(1); opacity: 0; } 
-      10% { opacity: 1; }
-      100% { transform: translateY(110vh) rotate(720deg) scale(0.8); opacity: 0; } 
-  }
-  
-  /* Winter Snow */
-  .premium-snow { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; animation: fallSnow linear infinite; }
-  @keyframes fallSnow { 0% { transform: translateY(-10vh) translateX(0); opacity:0;} 20%{opacity:0.9;} 100% { transform: translateY(110vh) translateX(40px); opacity:0; } }
-
-  /* Xmas Star */
-  .premium-star { position: absolute; color: #FFD700; font-size: 16px; animation: fallStar linear infinite; text-shadow: 0 0 12px #FFD700; }
-  @keyframes fallStar { 0% { transform: translateY(-10vh) rotate(0deg); opacity:1;} 100% { transform: translateY(110vh) rotate(360deg); opacity:0;} }
-</style>
-
-<!-- স্প্ল্যাশ স্ক্রিনের কন্টেইনার -->
-<div id="seasonalSplash" style="display:none;">
-    <i class="fas s-logo" id="sLogoIcon"></i>
-    <div class="s-text" id="sTextMain">Star Finance</div>
-    <div class="s-sub" id="sTextSub">Loading...</div>
-    <div class="loader-ring"></div>
-</div>
-<!-- ভেতরের ইফেক্টের কন্টেইনার -->
-<div id="premiumParticles"></div>
-
-<script>
-  (function() {
-      const today = new Date();
-      const m = today.getMonth(); // 0 = Jan, 6 = Jul
-      const d = today.getDate();
-      
-      let season = 'default';
-      let themeClass = '';
-
-      // নির্দিষ্ট তারিখের লজিক
-      if ((m === 6 && d >= 31) || (m === 7 && d <= 30)) { 
-          season = 'ind'; 
-          themeClass = 'theme-ind'; 
-      }
-      else if (m >= 8 && m <= 10) { 
-          season = 'win'; 
-          // আপনি উইন্টারের জন্য আলাদা থিম ক্লাস বানালে সেটি এখানে দিন, আপাতত ব্লু টোন
-          themeClass = 'theme-default'; 
-      } 
-      else if (m === 11 || (m === 0 && d <= 2)) { 
-          season = 'xmas'; 
-          themeClass = 'theme-xmas'; 
-      }
-
-      // ১. অটোমেটিক অ্যাপ থিম সেট করা (অ্যাডমিন প্যানেলের থিম অনুযায়ী)
-      if(themeClass !== '') {
-          document.body.classList.add(themeClass);
-      }
-
-      if (season !== 'default') {
-          // ২. প্রিমিয়াম স্প্ল্যাশ স্ক্রিন সেটআপ
-          const splash = document.getElementById('seasonalSplash');
-          const sLogo = document.getElementById('sLogoIcon');
-          const sText = document.getElementById('sTextMain');
-          const sSub = document.getElementById('sTextSub');
-          
-          // আগের কোনো স্প্ল্যাশ থাকলে সেটি হাইড করা
-          const oldSplash = document.getElementById('splashScreen');
-          if(oldSplash) oldSplash.style.display = 'none';
-
-          splash.style.display = 'flex';
-          
-          if(season === 'ind') {
-              splash.classList.add('splash-ind');
-              sLogo.classList.add('fa-dharmachakra'); // অশোক চক্র ঘুরবে
-              sSub.innerText = 'HAPPY INDEPENDENCE DAY';
-              sSub.style.color = '#FF9933';
-          } else if(season === 'win') {
-              splash.classList.add('splash-win');
-              sLogo.classList.add('fa-snowflake'); // স্নোফ্লেক পালস করবে
-              sSub.innerText = 'WINTER EDITION';
-              sSub.style.color = '#00f2fe';
-          } else if(season === 'xmas') {
-              splash.classList.add('splash-xmas');
-              sLogo.classList.add('fa-tree'); // ক্রিসমাস ট্রি বাউন্স করবে
-              sSub.innerText = 'HAPPY HOLIDAYS';
-              sSub.style.color = '#27ae60';
-          }
-
-          // ৬ সেকেন্ড পর প্রফেশনালভাবে ফেড-আউট হয়ে স্প্ল্যাশ সরে যাবে
-          setTimeout(() => {
-              splash.style.opacity = '0';
-              setTimeout(() => splash.style.display = 'none', 800);
-          }, 6000);
-
-          // ৩. ইন-অ্যাপ পার্টিকেল ইফেক্ট জেনারেটর (অনেক বেশি ন্যাচারাল লুক)
-          const pContainer = document.getElementById('premiumParticles');
-          const count = season === 'win' ? 35 : 20;
-
-          for(let i = 0; i < count; i++) {
-              let p = document.createElement('div');
-              if(season === 'ind') {
-                  p.className = 'ribbon';
-                  const colors = ['#FF9933', '#FFFFFF', '#138808']; // তেরঙা ফিতা
-                  p.style.background = colors[Math.floor(Math.random() * colors.length)];
-                  p.style.left = Math.random() * 100 + 'vw';
-                  p.style.animationDuration = (Math.random() * 3 + 4) + 's';
-                  p.style.animationDelay = (Math.random() * 4) + 's';
-              } else if(season === 'win') {
-                  p.className = 'premium-snow';
-                  const size = Math.random() * 5 + 3; // ছোট-বড় তুষার
-                  p.style.width = size + 'px'; p.style.height = size + 'px';
-                  p.style.left = Math.random() * 100 + 'vw';
-                  p.style.animationDuration = (Math.random() * 6 + 4) + 's';
-                  p.style.animationDelay = (Math.random() * 5) + 's';
-              } else if(season === 'xmas') {
-                  p.className = 'premium-star'; // সোনালী তারা
-                  p.innerHTML = '★';
-                  p.style.left = Math.random() * 100 + 'vw';
-                  p.style.fontSize = (Math.random() * 12 + 10) + 'px';
-                  p.style.animationDuration = (Math.random() * 4 + 3) + 's';
-                  p.style.animationDelay = (Math.random() * 3) + 's';
-              }
-              pContainer.appendChild(p);
-          }
-      }
-  })();
-</script>
-<!-- আলটিমেট সিজনাল অটো-থিম এবং প্রিমিয়াম অ্যানিমেশন শর্টকাট শেষ -->
-<!-- আলটিমেট লাইট থিম কালার ফিক্স শুরু -->
-<style>
-  /* ১. মূল ব্যাকগ্রাউন্ড হালকা করা */
-  body.theme-ind {
-      background-color: #f5f7fa !important;
-  }
-  
-  /* ২. অ্যাপের ভেতরের সমস্ত ডার্ক কার্ড ও কন্টেইনার সাদা করা */
-  body.theme-ind .page-screen,
-  body.theme-ind .dashboard-container,
-  body.theme-ind .menu-card,
-  body.theme-ind .balance-card,
-  body.theme-ind .civil-score-container,
-  body.theme-ind .admin-card,
-  body.theme-ind .admin-req-item,
-  body.theme-ind .fd-card,
-  body.theme-ind .profile-info-grid,
-  body.theme-ind .feedback-item,
-  body.theme-ind .cc-box,
-  body.theme-ind .admin-modal-box,
-  body.theme-ind .header,
-  body.theme-ind .bottom-nav,
-  body.theme-ind .auth-box,
-  body.theme-ind .sidebar {
-      background: #ffffff !important;
-      border: 1px solid #e1e8ed !important;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-  }
-
-  /* ৩. সমস্ত টেক্সট জোরপূর্বক কালো/গাঢ় করা (ব্রুট-ফোর্স মেথড) */
-  body.theme-ind div,
-  body.theme-ind span,
-  body.theme-ind p,
-  body.theme-ind h1,
-  body.theme-ind h2,
-  body.theme-ind h3,
-  body.theme-ind h4,
-  body.theme-ind h5,
-  body.theme-ind h6,
-  body.theme-ind strong,
-  body.theme-ind label {
-      color: #1a1a2e !important;
-      text-shadow: none !important;
-  }
-
-  /* ৪. স্পেসিফিক আইকনগুলোকে দৃশ্যমান করা */
-  body.theme-ind i.fas, 
-  body.theme-ind i.fab {
-      color: #0056b3 !important; /* স্ট্যান্ডার্ড ব্লু */
-  }
-  body.theme-ind i.fa-dharmachakra, body.theme-ind i.fa-check-circle { color: #138808 !important; } /* সবুজ */
-  body.theme-ind i.fa-bolt, body.theme-ind i.fa-times-circle, body.theme-ind i.fa-trash { color: #e74c3c !important; } /* লাল */
-  body.theme-ind i.fa-coins, body.theme-ind i.fa-hand-holding-usd, body.theme-ind i.fa-gift { color: #d35400 !important; } /* গোল্ডেন/অরেঞ্জ */
-
-  /* ৫. বাটনগুলোর টেক্সট ঠিক রাখা (যেন বাটনের সাদা লেখা কালো না হয়ে যায়) */
-  body.theme-ind .auth-btn,
-  body.theme-ind .auth-btn i,
-  body.theme-ind .auth-btn span,
-  body.theme-ind .btn-approve,
-  body.theme-ind .btn-approve i,
-  body.theme-ind .btn-break,
-  body.theme-ind .support-fab,
-  body.theme-ind .support-fab i,
-  body.theme-ind .notif-badge {
-      color: #ffffff !important;
-  }
-  
-  /* আউটলাইন বাটন ফিক্স */
-  body.theme-ind .btn-outline {
-      background: transparent !important;
-      color: #0056b3 !important;
-      border-color: #0056b3 !important;
-  }
-
-  /* ৬. ইনপুট ফিল্ড ও টেক্সট এরিয়া ফিক্স */
-  body.theme-ind input,
-  body.theme-ind select,
-  body.theme-ind textarea {
-      background: #f0f2f5 !important;
-      color: #111 !important;
-      border: 1px solid #ccc !important;
-  }
-  body.theme-ind input::placeholder,
-  body.theme-ind textarea::placeholder {
-      color: #888 !important;
-  }
-
-  /* ৭. জাভাস্ক্রিপ্ট দ্বারা তৈরি হওয়া ডার্ক ব্যাকগ্রাউন্ডগুলোকে লাইট করা */
-  body.theme-ind [style*="background:rgba(0,0,0"], 
-  body.theme-ind [style*="background: rgba(0,0,0"],
-  body.theme-ind [style*="background:#111"],
-  body.theme-ind [style*="background: #111"] {
-      background: #f8f9fa !important;
-      border: 1px solid #ddd !important;
-  }
-</style>
-<!-- আলটিমেট লাইট থিম কালার ফিক্স শেষ -->
 
 </body>
 </html>
