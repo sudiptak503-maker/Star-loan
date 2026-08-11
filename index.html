@@ -2970,6 +2970,101 @@ window.openAdminModal = function(type) {
     existingOpenAdminModalLogic(type);
 };
 </script>
+<!-- ================= [ AUTO POP-UP FOR BLOCKED USERS ] ================= -->
+<style>
+  #blockedAutoModal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; z-index: 9999999; padding: 15px;
+  }
+  .blocked-modal-box {
+    background: #151520; border: 2px solid var(--danger); border-radius: 20px;
+    padding: 30px 20px; width: 100%; max-width: 400px; text-align: center;
+    box-shadow: 0 15px 40px rgba(255, 77, 77, 0.3); animation: popIn 0.4s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
 
+<div id="blockedAutoModal">
+  <div class="blocked-modal-box">
+     <i class="fas fa-exclamation-triangle fa-3x" style="color:var(--danger); margin-bottom:15px; animation: pulse 2s infinite;"></i>
+     <h3 style="color:var(--danger); margin-bottom:10px;">অ্যাকাউন্ট ব্লকড!</h3>
+     <p style="color:#ddd; font-size:14px; margin-bottom:15px; line-height:1.6;">
+        আপনার লোনের মেয়াদ শেষ হয়ে গেছে এবং ওভারডিউয়ের জন্য সার্ভিসটি টেম্পোরারি ব্লক করা হয়েছে। দয়া করে সম্পূর্ণ বকেয়া পে করুন।
+     </p>
+     <div style="background:rgba(0,0,0,0.5); padding:15px; border-radius:10px; margin-bottom:20px; text-align:left; border: 1px dashed var(--danger);">
+         <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#aaa;">
+             <span>লোন ও চার্জ:</span> <strong>₹<span id="blkLoanAmt">0</span></strong>
+         </div>
+         <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--danger);">
+             <span>ওভারডিউ পেনাল্টি:</span> <strong>₹<span id="blkPenaltyAmt">0</span></strong>
+         </div>
+         <hr style="border-top:1px dashed #555; margin:10px 0;">
+         <div style="display:flex; justify-content:space-between; font-size:16px;">
+             <span>মোট পেমেন্ট (Full Due):</span> <strong style="color:var(--success);">₹<span id="blkTotalAmt">0</span></strong>
+         </div>
+     </div>
+     <button class="auth-btn" style="background:var(--success);color:#000; margin-bottom:12px;" id="blkWalletBtn">
+        <i class="fas fa-wallet"></i> ওয়ালেট থেকে পে করুন
+     </button>
+     <button class="auth-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#000;" id="blkUpiBtn">
+        <i class="fas fa-qrcode"></i> UPI দিয়ে পে করুন
+     </button>
+  </div>
+</div>
+
+<script>
+  // UI আপডেটের সাথে অটো-পপআপ যুক্ত করা হলো
+  const checkBlockedStatusOg = window.updateUI;
+  let blockedModalShown = false; 
+
+  window.updateUI = function() {
+      if (checkBlockedStatusOg) checkBlockedStatusOg();
+
+      const data = currentUserData;
+      const modal = document.getElementById('blockedAutoModal');
+      
+      // ইউজার ব্লকড থাকলে এবং অ্যাক্টিভ লোন থাকলে
+      if (data && data.loanBlockedUntil && data.activeLoan) {
+          let leftBlockDays = Math.ceil((data.loanBlockedUntil - Date.now()) / (1000*60*60*24));
+          
+          if (leftBlockDays > 0) {
+              const loan = data.activeLoan;
+              const msPerDay = 1000 * 60 * 60 * 24;
+              const daysLate = Math.floor((Date.now() - loan.dueDate) / msPerDay);
+              
+              // প্রতিদিন ৫ টাকা হিসেবে লাইভ ক্যালকুলেশন 
+              const penalty = daysLate > 0 ? daysLate * 5 : 0; 
+              const principalAndInterest = loan.amount + (loan.amount * loan.interest);
+              const paid = loan.paid || 0;
+              const totalPayable = principalAndInterest + penalty - paid;
+              
+              // পপআপের ভেতরের ডাটা আপডেট করা
+              document.getElementById('blkLoanAmt').innerText = (principalAndInterest - paid).toFixed(0);
+              document.getElementById('blkPenaltyAmt').innerText = penalty.toFixed(0);
+              document.getElementById('blkTotalAmt').innerText = totalPayable.toFixed(0);
+              
+              // বাটনের কাজ (পেমেন্ট প্রসেস)
+              document.getElementById('blkWalletBtn').onclick = () => { repayFromWallet(totalPayable); modal.style.display='none'; };
+              document.getElementById('blkUpiBtn').onclick = () => { openUPIIntent(totalPayable, 'loanRepay'); modal.style.display='none'; };
+              
+              // হোমস্ক্রিনে থাকা অবস্থায় পপ-আপ দেখানো এবং নোটিফিকেশন পাঠানো
+              if (!blockedModalShown && document.getElementById('homeScreen').style.display !== 'none') {
+                  modal.style.display = 'flex';
+                  blockedModalShown = true; // একবার দেখালে সেশন চলাকালীন আর বিরক্ত করবে না
+                  
+                  // সিস্টেম নোটিফিকেশন পাঠানো
+                  if(window.addNotification) {
+                      window.addNotification(data.uid, 'অ্যাকাউন্ট ব্লকড ⚠️', 'আপনার লোন ওভারডিউ রয়েছে। আনব্লক করতে দয়া করে সম্পূর্ণ বকেয়া (₹' + totalPayable.toFixed(0) + ') পে করুন।', 'error');
+                  }
+              }
+          } else {
+              if (modal) modal.style.display = 'none';
+          }
+      } else {
+          if (modal) modal.style.display = 'none';
+      }
+  };
+</script>
+<!-- ================= [ END AUTO POP-UP ] ================= -->
 </body>
 </html>
