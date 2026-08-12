@@ -2307,10 +2307,6 @@
   .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; max-width: 250px; }
   .pin-btn { width: 60px; height: 60px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg); color: var(--primary); font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .pin-btn:active { background: var(--primary); color: #000; }
-
-  /* Scratch Card */
-  .scratch-container { background: #333; width: 100%; height: 150px; border-radius: 15px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-top: 15px; cursor: pointer; border: 2px dashed var(--gold); }
-  .scratch-cover { position: absolute; inset: 0; background: linear-gradient(135deg, #4facfe, #00f2fe); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #000; transition: opacity 0.5s; z-index: 2; }
 </style>
 
 <script>
@@ -2328,19 +2324,7 @@
         </div>
     </div>
 
-    <!-- Scratch Card Modal -->
-    <div id="scratchModal" class="admin-modal-overlay">
-        <div class="admin-modal-box" style="text-align:center;">
-            <button class="close-modal" onclick="document.getElementById('scratchModal').style.display='none'"><i class="fas fa-times"></i></button>
-            <h3 style="color:var(--gold);"><i class="fas fa-gift"></i> Reward Scratch Card</h3>
-            <div class="scratch-container" onclick="revealScratchCard()">
-                <div class="scratch-cover" id="scratchCover">Click to Scratch!</div>
-                <div style="font-size: 30px; font-weight: bold; color: var(--success);" id="scratchResult">₹0</div>
-            </div>
-            <p style="font-size:12px; color:#aaa; margin-top:10px;">Scratch History</p>
-            <div id="scratchHistory" style="max-height:100px; overflow-y:auto; font-size:12px; color:#ddd; text-align:left; padding:5px; border:1px solid #333; border-radius:8px;"></div>
-        </div>
-    </div>
+    
 
     <!-- Theme Settings Modal -->
     <div id="themeModal" class="admin-modal-overlay">
@@ -2397,7 +2381,6 @@
             <div class="sidebar-item" onclick="toggleSidebar(); openProfilePage()"><i class="fas fa-user"></i> <span class="lang-txt" data-en="My Profile" data-bn="আমার প্রোফাইল">My Profile</span></div>
             <div class="sidebar-item" onclick="toggleSidebar(); document.getElementById('withdrawModal').style.display='flex'"><i class="fas fa-money-bill-wave" style="color:var(--success);"></i> <span class="lang-txt" data-en="Withdraw Money" data-bn="টাকা তুলুন">Withdraw Money</span></div>
             <div class="sidebar-item" onclick="toggleSidebar(); openAllHistoryModal()"><i class="fas fa-history"></i> <span class="lang-txt" data-en="Transaction History" data-bn="লেনদেনের ইতিহাস">Transaction History</span></div>
-            <div class="sidebar-item" onclick="toggleSidebar(); document.getElementById('scratchModal').style.display='flex'; loadScratchHistory();"><i class="fas fa-gift" style="color:var(--gold);"></i> <span class="lang-txt" data-en="Scratch Card" data-bn="স্ক্র্যাচ কার্ড">Scratch Card</span></div>
             <div class="sidebar-item" onclick="toggleSidebar(); document.getElementById('themeModal').style.display='flex'"><i class="fas fa-palette"></i> <span class="lang-txt" data-en="Theme & Display" data-bn="থিম ও ডিসপ্লে">Theme & Display</span></div>
             <div class="sidebar-item" onclick="toggleSidebar(); document.getElementById('appLockScreen').style.display='flex'; document.getElementById('setupLockBtn').style.display='block'; isSettingPin=true; document.getElementById('lockTitle').innerHTML='Setup New PIN';"><i class="fas fa-lock"></i> <span class="lang-txt" data-en="App Lock Setup" data-bn="অ্যাপ লক সেটআপ">App Lock Setup</span></div>
             <div class="sidebar-item" onclick="toggleSidebar(); toggleLanguage()"><i class="fas fa-language" style="color:var(--primary);"></i> <span id="langToggleTxt">Change to BENGALI</span></div>
