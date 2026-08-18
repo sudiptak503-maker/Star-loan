@@ -1382,8 +1382,8 @@
       <hr style="border:0; border-top:1px solid #333; margin:25px 0 20px;">
       <h4 style="color:var(--gold); margin-bottom:15px;">Open New FD</h4>
       <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #333;">
-        <label style="color:#ddd; display:block; margin-bottom:8px;">Amount (₹100 - ₹1000)</label>
-        <input type="number" id="fdAmount" class="auth-input" placeholder="100 to 1000" min="100" max="1000" value="100" oninput="updateFdPreview()">
+        <label style="color:#ddd; display:block; margin-bottom:8px;">Amount (₹100 - ₹5000)</label>
+        <input type="number" id="fdAmount" class="auth-input" placeholder="100 to 5000" min="100" max="5000" value="100" oninput="updateFdPreview()">
         <label style="color:#ddd; display:block; margin-bottom:8px; margin-top:15px;">Select Duration</label>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(80px, 1fr)); gap:10px; margin-bottom:15px;">
           <div class="quick-amount-card" onclick="selectFdDuration(1)" id="fdDur1">4 Weeks</div>
@@ -1416,7 +1416,7 @@
 
   async function createFD(){
     const amount = parseInt(document.getElementById('fdAmount').value);
-    if(amount < 100 || amount > 1000) return showToast('Amount must be ₹100-₹1000');
+    if(amount < 100 || amount > 5000) return showToast('Amount must be ₹100-₹5000');
     if((currentUserData.wallet || 0) < amount) return showToast('Insufficient wallet balance');
     const months = selectedFdDuration || 1;
     let interestRate = 0;
