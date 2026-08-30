@@ -3049,5 +3049,1069 @@ window.openAdminModal = function(type) {
   };
 </script>
 <!-- ================= [ END AUTO POP-UP ] ================= -->
+<!-- ================= [ OVERRIDE UPDATES: DUE POLICY & EMERGENCY REPAY ] ================= -->
+<div id="emgActiveScreen" class="page-screen">
+  <div class="page-header">
+    <button class="page-back" onclick="openPage('homeScreen')"><i class="fas fa-arrow-left"></i></button>
+    <h3><i class="fas fa-bolt" style="color:#00f2fe;"></i> Active Emergency</h3>
+  </div>
+  <div id="emgActiveBody"></div>
+</div>
+
+<div id="tempPolicyPopup" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999999; display:none; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+    <div style="background:#151520; border:2px solid var(--primary); padding:25px; border-radius:15px; text-align:center; max-width:350px; animation:popIn 0.3s ease;">
+        <i class="fas fa-info-circle fa-3x" style="color:var(--primary); margin-bottom:15px;"></i>
+        <h3 style="color:#fff; margin-bottom:10px;">নতুন ডিউ চার্জ পলিসি!</h3>
+        <p style="color:#ccc; font-size:14px; line-height:1.6;">এখন থেকে ডিউ এর প্রথম দিনে <strong>₹150</strong> লেট ফি (Late Fee) চার্জ যুক্ত হবে। এরপর প্রতিদিন আগের মতোই <strong>₹5</strong> করে যুক্ত হবে।</p>
+    </div>
+</div>
+
+<script>
+(function applyUpdates() {
+    // ১. পপআপ ২ সেকেন্ডের জন্য দেখানো (সেশনে একবার)
+    setTimeout(() => {
+        if(!sessionStorage.getItem('policyShown')) {
+            const pop = document.getElementById('tempPolicyPopup');
+            if (pop) {
+                pop.style.display = 'flex';
+                sessionStorage.setItem('policyShown', 'true');
+                setTimeout(() => { pop.style.display = 'none'; }, 2500); // অ্যানিমেশনের সময় সহ
+            }
+        }
+    }, 1500);
+
+    // ২. নতুন পেনাল্টি ক্যালকুলেশন (প্রথম দিনে ১৫০, তারপর ৫ টাকা করে)
+    window.calculateOverduePenalty = function(daysLate, loanAmount) {
+        return daysLate > 0 ? 150 + ((daysLate - 1) * 5) : 0;
+    };
+
+    // Auto-Popup ব্লকড প্যানেলের জন্য ক্যালকুলেশন ওভাররাইট
+    const ogUpdateUIForBlocked = window.updateUI;
+    window.updateUI = function() {
+        if (ogUpdateUIForBlocked) ogUpdateUIForBlocked();
+        
+        if (currentUserData && currentUserData.loanBlockedUntil && currentUserData.activeLoan) {
+            const loan = currentUserData.activeLoan;
+            const daysLate = Math.floor((Date.now() - loan.dueDate) / (1000 * 60 * 60 * 24));
+            if (daysLate > 0) {
+                const penalty = 150 + ((daysLate - 1) * 5); // নতুন ফি
+                const principalAndInterest = loan.amount + (loan.amount * loan.interest);
+                const paid = loan.paid || 0;
+                const totalPayable = principalAndInterest + penalty - paid;
+                
+                const penaltyEl = document.getElementById('blkPenaltyAmt');
+                const totalEl = document.getElementById('blkTotalAmt');
+                if(penaltyEl) penaltyEl.innerText = penalty.toFixed(0);
+                if(totalEl) totalEl.innerText = totalPayable.toFixed(0);
+                
+                const wBtn = document.getElementById('blkWalletBtn');
+                const uBtn = document.getElementById('blkUpiBtn');
+                if(wBtn) wBtn.onclick = () => { repayFromWallet(totalPayable); document.getElementById('blockedAutoModal').style.display='none'; };
+                if(uBtn) uBtn.onclick = () => { openUPIIntent(totalPayable, 'loanRepay'); document.getElementById('blockedAutoModal').style.display='none'; };
+            }
+        }
+    };
+
+    // ৩. ইমার্জেন্সি নিড (ইউজার সাইডে পেমেন্ট অপশন)
+    const ogOpenEmgMain = window.openEmgMainScreen;
+    window.openEmgMainScreen = function() {
+        if(!currentUserData) return showToast('Please login');
+        if(currentUserData.activeEmergency && currentUserData.activeEmergency.status === 'active') {
+            document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+            document.getElementById('emgActiveScreen').style.display = 'block';
+            
+            const emg = currentUserData.activeEmergency;
+            const totalDue = emg.amount + (emg.amount * emg.interest) + (emg.penalty || 0);
+            
+            document.getElementById('emgActiveBody').innerHTML = `
+                <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:15px; border:1px solid #e67e22; text-align:center; margin:15px;">
+                    <i class="fas fa-exclamation-circle fa-2x" style="color:#e67e22; margin-bottom:10px;"></i>
+                    <h4 style="color:#fff; margin-bottom:15px;">${emg.service}</h4>
+                    <div style="display:flex;justify-content:space-between; margin-bottom:8px; color:#aaa;"><span>Amount Taken:</span> <strong>₹${emg.amount}</strong></div>
+                    <div style="display:flex;justify-content:space-between; margin-bottom:8px; color:#aaa;"><span>Interest:</span> <strong>₹${(emg.amount * emg.interest).toFixed(0)}</strong></div>
+                    <div style="display:flex;justify-content:space-between; margin-bottom:15px; font-size:18px; border-top:1px dashed #555; padding-top:10px;">
+                        <span>Total Due:</span> <strong style="color:var(--danger);">₹${totalDue.toFixed(0)}</strong>
+                    </div>
+                    <button class="auth-btn" style="background:var(--success);color:#000; margin-bottom:10px;" onclick="repayEmergencyFromWallet(${totalDue})"><i class="fas fa-wallet"></i> Pay from Wallet</button>
+                    <button class="auth-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#000;" onclick="openUPIIntent(${totalDue}, 'emgRepay')"><i class="fas fa-qrcode"></i> Pay via UPI</button>
+                </div>
+            `;
+        } else {
+            ogOpenEmgMain();
+        }
+    };
+
+    // ৪. ইমার্জেন্সি নিড (অ্যাডমিন প্যানেলে পেমেন্ট কনফার্মেশন যুক্ত)
+    setTimeout(() => {
+        const adminGrid = document.querySelector('.admin-grid');
+        if(adminGrid) {
+            adminGrid.innerHTML += `<div class="admin-card" onclick="openAdminModal('emgRepay')" style="border-color:#3498db; background:rgba(52, 152, 219, 0.05); grid-column: 1 / span 2;"><i class="fas fa-receipt" style="color:#3498db;"></i><h4 style="font-size:14px;">Emg Repayments</h4></div>`;
+        }
+    }, 2000);
+
+    const ogOpenAdminModal = window.openAdminModal;
+    window.openAdminModal = function(type) {
+        if(type === 'emgRepay') {
+            document.getElementById('adminModalOverlay').style.display = 'flex';
+            const body = document.getElementById('adminModalBody');
+            document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-receipt" style="color:#3498db;"></i> Emergency Repayments';
+            body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+            
+            db.collection('admin_requests').where('type','==','emgRepay').where('status','==','pending').get().then(snap => {
+                let html = '';
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    html += `<div class="admin-req-item" style="border-left:4px solid #3498db;">
+                        <strong style="font-size:16px;">${d.name}</strong><br>
+                        <div style="margin-top:5px;">Amount Paid: <span style="color:var(--success); font-weight:bold; font-size:15px;">₹${d.amount}</span></div>
+                        <div style="margin-top:5px; font-size:13px; color:#aaa;">UTR: <span style="color:var(--primary); user-select:all;">${d.utr}</span></div>
+                        <div class="actions" style="margin-top:10px;">
+                            <button class="btn-approve" onclick="adminApprove('${doc.id}', '${d.uid}', 'emgRepay', ${d.amount})">Approve & Clear</button>
+                            <button class="btn-reject" onclick="adminReject('${doc.id}', '${d.uid}', 'emgRepay')">Reject</button>
+                        </div>
+                    </div>`;
+                });
+                body.innerHTML = html || '<div style="text-align:center;color:#aaa;">No pending emergency payments</div>';
+            });
+        } else {
+            ogOpenAdminModal(type);
+        }
+    };
+
+    const ogAdminApprove = window.adminApprove;
+    window.adminApprove = async function(docId, uid, type, amount, loanType, interest) {
+        if (type === 'emgRepay') {
+            const isConfirm = await customConfirm('Approve this Emergency Repayment?');
+            if(!isConfirm) return;
+            Buffer.show('Approving...');
+            try {
+                await db.collection('users').doc(uid).update({ activeEmergency: firebase.firestore.FieldValue.delete() });
+                await db.collection('admin_requests').doc(docId).update({ status: 'approved' });
+                addHistoryRecord(uid, 'Emergency UPI Repayment Approved', amount, 'credit');
+                Buffer.hide();
+                showToast('Emergency Service Cleared!');
+                openAdminModal('emgRepay');
+            } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+            return;
+        }
+        return ogAdminApprove(docId, uid, type, amount, loanType, interest);
+    };
+})();
+</script>
+<!-- ================= [ END OVERRIDE UPDATES ] ================= -->
+<!-- ================= [ OVERRIDE UPDATE: FD LOAN SYSTEM ] ================= -->
+<script>
+(function initFdLoanUpdate() {
+    // ১. হোম স্ক্রিনে FD Loan বাটন যুক্ত করা
+    setTimeout(() => {
+        const gridMenu = document.querySelector('.grid-menu');
+        if (gridMenu) {
+            gridMenu.innerHTML += `
+            <div class="menu-card" onclick="openFdLoan()" style="border-color:#e84393; background: rgba(232, 67, 147, 0.05);">
+                <div class="menu-icon"><i class="fas fa-handshake" style="color:#e84393;"></i></div>
+                <h4>FD Loan</h4>
+            </div>`;
+        }
+    }, 1500);
+
+    // ২. অ্যাডমিন প্যানেলে FD Loan Requests বাটন যুক্ত করা
+    setTimeout(() => {
+        const adminGrid = document.querySelector('.admin-grid');
+        if (adminGrid) {
+            adminGrid.innerHTML += `
+            <div class="admin-card" onclick="openAdminModal('fdLoan')" style="border-color:#e84393; background:rgba(232, 67, 147, 0.05);">
+                <i class="fas fa-handshake" style="color:#e84393;"></i><h4 style="font-size:14px;">FD Loan Reqs</h4>
+            </div>`;
+        }
+    }, 2000);
+
+    // ৩. FD Loan পেজ এবং লজিক
+    window.openFdLoan = function() {
+        if(!currentUserData) return showToast('Please login');
+        
+        if(currentUserData.loanStatus === 'active' || currentUserData.loanStatus === 'pending') {
+            return showToast('আপনার ইতিমধ্যেই একটি অ্যাক্টিভ বা পেন্ডিং লোন রয়েছে!');
+        }
+        
+        const hasActiveFD = currentUserData.fds && currentUserData.fds.length > 0;
+        if(!hasActiveFD) {
+            return showToast('আপনার কোনো অ্যাক্টিভ FD নেই! এই লোন নিতে হলে প্রথমে একটি FD খুলুন।');
+        }
+
+        const subPage = document.createElement('div');
+        subPage.id = 'fdLoanSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeFdLoan()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-handshake" style="color:#e84393;"></i> FD Loan</h3>
+          </div>
+          <div style="padding:10px;">
+            <p style="color:#aaa; font-size:12px; margin-bottom:15px; text-align:center;">FD ইউজারদের জন্য স্পেশাল লোন। কোনো CIBIL স্কোরের প্রয়োজন নেই!</p>
+            
+            <div class="loan-slider-container">
+              <label>Loan Amount (₹100 - ₹5000)</label>
+              <input type="range" min="100" max="5000" value="100" step="100" id="fdLoanSlider" oninput="updateFdLoanPreview()">
+              <div class="slider-values"><span>₹100</span><span>₹5000</span></div>
+              <div class="selected-amount">₹<span id="fdlSliderAmount">100</span></div>
+            </div>
+            
+            <div style="margin-top:15px;">
+              <label style="color:#ddd; font-size:14px;">Repayment Period</label>
+              <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                  <button class="btn-outline" style="flex:1; margin:0;" onclick="selectFdLoanEmi('1')" id="btnFdl1">1 Month (25%)</button>
+                  <button class="btn-outline" style="flex:1; margin:0;" onclick="selectFdLoanEmi('3')" id="btnFdl3">3 Months (40%)</button>
+              </div>
+            </div>
+            
+            <div style="background:#111; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Principal:</span> <strong>₹<span id="fdlAmtView">100</span></strong></div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Interest:</span> <strong style="color:var(--gold);">+ ₹<span id="fdlIntView">25</span></strong></div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Total Payable:</span> <strong style="color:var(--success);">₹<span id="fdlTotalView">125</span></strong></div>
+              <div style="display:flex; justify-content:space-between; font-size:13px; color:#aaa; margin-top:5px; padding-top:5px; border-top:1px dashed #333;">
+                  <span>Monthly EMI:</span> <strong style="color:var(--primary);">₹<span id="fdlEmiView">125</span></strong>
+              </div>
+            </div>
+            
+            <button class="auth-btn" style="background:#e84393; color:#fff; margin-top:20px;" onclick="submitFdLoanReq()"><i class="fas fa-paper-plane"></i> Submit Request</button>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+        selectFdLoanEmi('1');
+    };
+
+    let fdlSelectedEmi = '1';
+    window.selectFdLoanEmi = function(val){
+        fdlSelectedEmi = val;
+        document.getElementById('btnFdl1').style.background = val === '1' ? '#e84393' : 'transparent';
+        document.getElementById('btnFdl1').style.color = val === '1' ? '#fff' : '#e84393';
+        document.getElementById('btnFdl1').style.borderColor = '#e84393';
+        document.getElementById('btnFdl3').style.background = val === '3' ? '#e84393' : 'transparent';
+        document.getElementById('btnFdl3').style.color = val === '3' ? '#fff' : '#e84393';
+        document.getElementById('btnFdl3').style.borderColor = '#e84393';
+        updateFdLoanPreview();
+    };
+
+    window.updateFdLoanPreview = function(){
+        const amt = parseInt(document.getElementById('fdLoanSlider').value);
+        document.getElementById('fdlSliderAmount').innerText = amt;
+        document.getElementById('fdlAmtView').innerText = amt;
+        
+        let interestRate = fdlSelectedEmi === '1' ? 0.25 : 0.40;
+        const interest = amt * interestRate;
+        document.getElementById('fdlIntView').innerText = interest.toFixed(0);
+        
+        const total = amt + interest;
+        document.getElementById('fdlTotalView').innerText = total.toFixed(0);
+        
+        const emi = Math.ceil(total / parseInt(fdlSelectedEmi));
+        document.getElementById('fdlEmiView').innerText = emi;
+    };
+
+    window.closeFdLoan = function(){ 
+        const el = document.getElementById('fdLoanSubPage'); 
+        if(el) el.remove(); 
+        openPage('homeScreen'); 
+    };
+
+    window.submitFdLoanReq = async function(){
+        const amt = parseInt(document.getElementById('fdlSliderAmount').innerText);
+        const months = parseInt(fdlSelectedEmi);
+        const interestRate = months === 1 ? 0.25 : 0.40;
+        const loanType = 'fdLoan_' + months;
+        
+        const isConfirm = await customConfirm(`Apply for ₹${amt} FD Loan with ${interestRate*100}% interest?`);
+        if(!isConfirm) return;
+        
+        Buffer.show('Submitting...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+            await db.collection('admin_requests').add({
+                uid: currentUserData.uid, 
+                name: currentUserData.fullname,
+                kyc: currentUserData.loanKYC || {},
+                amount: amt, 
+                type: 'fdLoan', 
+                loanType: loanType,
+                interest: interestRate, 
+                status: 'pending', 
+                timestamp: Date.now()
+            });
+            Buffer.hide(); showToast('FD Loan request sent to admin!');
+            closeFdLoan();
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৪. অ্যাডমিন প্যানেলে FD Loan কন্ট্রোল
+    const existingAdminModalForFdLoan = window.openAdminModal;
+    window.openAdminModal = function(type) {
+        if(type === 'fdLoan') {
+            document.getElementById('adminModalOverlay').style.display = 'flex';
+            const body = document.getElementById('adminModalBody');
+            document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-handshake" style="color:#e84393;"></i> FD Loan Requests';
+            body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+            
+            db.collection('admin_requests').where('type','==','fdLoan').where('status','==','pending').get().then(snap => {
+                let html = '';
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    html += `
+                    <div class="admin-req-item" style="border-left:4px solid #e84393;">
+                        <strong style="color:#e84393; font-size:16px;"><i class="fas fa-user"></i> ${d.name}</strong><br>
+                        <div style="font-size:12px; color:#aaa; margin-top:5px;">UPI: <span style="color:#fff;">${d.kyc.upiAc || 'N/A'}</span></div>
+                        <div style="background:#000; padding:10px; border-radius:8px; margin-top:8px; font-size:13px; color:#ddd;">
+                            <strong>Amount:</strong> ₹${d.amount} (${d.loanType.split('_')[1]} Months)<br>
+                            <strong>Interest:</strong> +₹${(d.amount * d.interest).toFixed(0)} (${d.interest * 100}%)
+                        </div>
+                        <div class="actions">
+                            <!-- type হিসেবে 'loan' পাঠানো হচ্ছে যাতে মেইন লোন সিস্টেমের ডিফল্ট লজিক কাজ করে -->
+                            <button class="btn-approve" onclick="adminApprove('${doc.id}', '${d.uid}', 'loan', ${d.amount}, '${d.loanType}', ${d.interest})">Approve</button>
+                            <button class="btn-reject" onclick="adminReject('${doc.id}', '${d.uid}', 'loan')">Reject</button>
+                        </div>
+                    </div>`;
+                });
+                body.innerHTML = html || '<div style="text-align:center;color:#aaa;">No pending FD loans</div>';
+            });
+            return;
+        }
+        
+        // অন্যান্য মডালের জন্য আগের ফাংশনটি কল হবে
+        existingAdminModalForFdLoan(type);
+    };
+})();
+</script>
+<!-- ================= [ END FD LOAN SYSTEM UPDATE ] ================= -->
+<!-- ================= [ OVERRIDE UPDATE: GULLAK SYSTEM ] ================= -->
+<style>
+  /* Gullak Visual CSS */
+  .gullak-container { text-align: center; margin: 20px 0; }
+  .gullak-pot {
+    width: 140px; height: 160px; border: 4px solid var(--primary);
+    border-radius: 45% 45% 40% 40%; position: relative; overflow: hidden; margin: 0 auto;
+    background: rgba(0,0,0,0.5); box-shadow: inset 0 0 20px rgba(0,242,254,0.2), 0 10px 20px rgba(0,0,0,0.5);
+  }
+  .gullak-liquid {
+    position: absolute; bottom: 0; left: 0; width: 100%;
+    background: linear-gradient(0deg, #FF8C00 0%, #FFD700 100%);
+    box-shadow: 0 -5px 15px rgba(255, 215, 0, 0.5);
+    transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .gullak-cap {
+    width: 60px; height: 15px; background: var(--primary);
+    margin: 0 auto -5px auto; border-radius: 10px 10px 0 0; position: relative; z-index: 2;
+  }
+  .gullak-percent {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 2px 5px rgba(0,0,0,0.8); z-index: 5;
+  }
+</style>
+
+<script>
+(function initGullakUpdate() {
+    // ১. হোম স্ক্রিনে Gullak বাটন যুক্ত করা
+    setTimeout(() => {
+        const gridMenu = document.querySelector('.grid-menu');
+        if (gridMenu) {
+            gridMenu.innerHTML += `
+            <div class="menu-card" onclick="openGullakScreen()" style="border-color:#1abc9c; background: rgba(26, 188, 156, 0.05); grid-column: 1 / span 2;">
+                <div class="menu-icon"><i class="fas fa-piggy-bank" style="color:#1abc9c;"></i></div>
+                <h4>My Gullak</h4>
+            </div>`;
+        }
+    }, 2500);
+
+    // ২. অ্যাডমিন প্যানেলে Gullak Requests বাটন যুক্ত করা
+    setTimeout(() => {
+        const adminGrid = document.querySelector('.admin-grid');
+        if (adminGrid) {
+            adminGrid.innerHTML += `
+            <div class="admin-card" onclick="openAdminModal('gullakReq')" style="border-color:#1abc9c; background:rgba(26, 188, 156, 0.05); grid-column: 1 / span 2;">
+                <i class="fas fa-piggy-bank" style="color:#1abc9c;"></i><h4 style="font-size:14px;">Gullak Withdrawals</h4>
+            </div>`;
+        }
+    }, 3000);
+
+    // ৩. Gullak পেজ ডিজাইন ও লজিক
+    window.openGullakScreen = function() {
+        if(!currentUserData) return showToast('Please login');
+
+        // Gullak ডাটা না থাকলে ইনিশিয়ালাইজ করা
+        const gullakData = currentUserData.gullak || { balance: 0, lockLimit: 0 };
+        const maxLimit = 20000;
+        const percent = Math.min((gullakData.balance / maxLimit) * 100, 100);
+
+        const subPage = document.createElement('div');
+        subPage.id = 'gullakSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeGullakScreen()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-piggy-bank" style="color:#1abc9c;"></i> My Gullak</h3>
+          </div>
+          <div style="padding:10px;">
+            <p style="color:#aaa; font-size:12px; margin-bottom:10px; text-align:center;">₹10 থেকে ₹20,000 পর্যন্ত জমা করুন। নিজের টার্গেট সেট করুন!</p>
+            
+            <div class="gullak-container">
+                <div class="gullak-cap"></div>
+                <div class="gullak-pot">
+                    <div class="gullak-liquid" id="gullakLiquidFill" style="height: ${percent}%;"></div>
+                    <div class="gullak-percent"><span id="gullakPercentText">${percent.toFixed(1)}</span>%</div>
+                </div>
+                <div style="margin-top:15px; font-size:20px; font-weight:bold; color:var(--gold);">
+                    জমা: ₹<span id="gullakBalText">${gullakData.balance.toFixed(0)}</span> / ₹20,000
+                </div>
+            </div>
+            
+            <div style="background:#111; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333;">
+                <label style="color:#ddd; font-size:13px; margin-bottom:8px; display:block;">টাকা জমা করুন (মেইন ওয়ালেট থেকে)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="gullakAddAmt" class="auth-input" placeholder="Amount (Min ₹10)" style="margin:0; flex:1;">
+                    <button class="auth-btn" style="background:#1abc9c; color:#fff; width:auto; padding:10px 20px;" onclick="depositToGullak()"><i class="fas fa-plus"></i> Add</button>
+                </div>
+            </div>
+
+            <div style="background:#111; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333;">
+                <label style="color:#ddd; font-size:13px; margin-bottom:8px; display:block;">লক লিমিট সেট করুন (০% - ১০০%)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <input type="range" min="0" max="100" value="${gullakData.lockLimit}" id="gullakLockSlider" oninput="document.getElementById('lockDisplay').innerText=this.value+'%'" style="flex:1;">
+                    <strong style="color:var(--primary); min-width:40px; text-align:right;" id="lockDisplay">${gullakData.lockLimit}%</strong>
+                </div>
+                <button class="btn-outline" style="border-color:#1abc9c; color:#1abc9c; margin-top:10px; padding:8px;" onclick="setGullakLockLimit()">লক আপডেট করুন</button>
+                <p style="font-size:11px; color:#aaa; margin-top:8px;">লক লিমিট পূর্ণ না হওয়া পর্যন্ত আপনি টাকা তুলতে পারবেন না।</p>
+            </div>
+            
+            <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:10px; margin-top:15px; border:1px dashed var(--danger);">
+                <h4 style="color:var(--danger); margin-bottom:10px;"><i class="fas fa-money-bill-wave"></i> Withdraw Gullak</h4>
+                <p style="font-size:12px; color:#aaa; margin-bottom:10px;">টাকা তোলার সময় 5% মেইনটেনেন্স চার্জ কাটা হবে।</p>
+                <input type="number" id="gullakWdAmt" class="auth-input" placeholder="Withdraw Amount">
+                <input type="text" id="gullakWdUpi" class="auth-input" placeholder="UPI ID / Bank Ac Details">
+                <button class="auth-btn" style="background:linear-gradient(135deg, #e74c3c, #c0392b); color:#fff; margin-top:5px;" onclick="withdrawFromGullak()" id="gullakWdBtn">Withdraw Request</button>
+                <div id="gullakLockMsg" style="color:var(--warning); font-size:12px; margin-top:10px; text-align:center; display:none;">লক লিমিট পূর্ণ না হওয়ায় উইথড্র বন্ধ আছে।</div>
+            </div>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+
+        checkGullakLockStatus(percent, gullakData.lockLimit);
+    };
+
+    window.closeGullakScreen = function(){ 
+        const el = document.getElementById('gullakSubPage'); 
+        if(el) el.remove(); 
+        openPage('homeScreen'); 
+    };
+
+    window.checkGullakLockStatus = function(currentPercent, lockLimit) {
+        const btn = document.getElementById('gullakWdBtn');
+        const msg = document.getElementById('gullakLockMsg');
+        if (currentPercent < lockLimit && lockLimit > 0) {
+            btn.style.opacity = '0.5';
+            btn.disabled = true;
+            msg.style.display = 'block';
+        } else {
+            btn.style.opacity = '1';
+            btn.disabled = false;
+            msg.style.display = 'none';
+        }
+    };
+
+    // জমা করার ফাংশন
+    window.depositToGullak = async function() {
+        const amt = parseInt(document.getElementById('gullakAddAmt').value);
+        if(!amt || amt < 10) return showToast('ন্যূনতম ₹10 জমা করতে হবে');
+        if((currentUserData.wallet || 0) < amt) return showToast('আপনার মেইন ওয়ালেটে পর্যাপ্ত টাকা নেই');
+
+        const gData = currentUserData.gullak || { balance: 0, lockLimit: 0 };
+        if(gData.balance + amt > 20000) return showToast('সর্বোচ্চ লিমিট (₹20,000) অতিক্রম করছে');
+
+        const isConfirm = await customConfirm(`ওয়ালেট থেকে Gullak-এ ₹${amt} জমা করবেন?`);
+        if(!isConfirm) return;
+
+        Buffer.show('Processing...');
+        try {
+            const newBal = gData.balance + amt;
+            await db.collection('users').doc(currentUserData.uid).update({
+                wallet: firebase.firestore.FieldValue.increment(-amt),
+                'gullak.balance': newBal,
+                'gullak.lockLimit': gData.lockLimit || 0
+            });
+            addHistoryRecord(currentUserData.uid, `Gullak-এ জমা করা হয়েছে`, amt, 'debit');
+            Buffer.hide(); showToast('সফলভাবে জমা হয়েছে!');
+            closeGullakScreen(); setTimeout(openGullakScreen, 300); // UI রিফ্রেশ
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // লিমিট লক করার ফাংশন
+    window.setGullakLockLimit = async function() {
+        const limit = parseInt(document.getElementById('gullakLockSlider').value);
+        const gData = currentUserData.gullak || { balance: 0 };
+        Buffer.show('Updating...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({
+                'gullak.lockLimit': limit,
+                'gullak.balance': gData.balance
+            });
+            Buffer.hide(); showToast('লক লিমিট সেট করা হয়েছে!');
+            closeGullakScreen(); setTimeout(openGullakScreen, 300);
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // উইথড্র করার ফাংশন
+    window.withdrawFromGullak = async function() {
+        const amt = parseInt(document.getElementById('gullakWdAmt').value);
+        const upi = document.getElementById('gullakWdUpi').value.trim();
+        const gData = currentUserData.gullak || { balance: 0 };
+
+        if(!amt || amt <= 0) return showToast('সঠিক পরিমাণ লিখুন');
+        if(amt > gData.balance) return showToast('Gullak-এ পর্যাপ্ত ব্যালেন্স নেই');
+        if(!upi) return showToast('UPI বা ব্যাংক ডিটেলস দিন');
+
+        const fee = Math.ceil(amt * 0.05); // 5% charge
+        const payout = amt - fee;
+
+        const isConfirm = await customConfirm(`₹${amt} উইথড্র করবেন? 5% চার্জ (₹${fee}) কাটা হবে। আপনি পাবেন ₹${payout}।`);
+        if(!isConfirm) return;
+
+        Buffer.show('Submitting Request...');
+        try {
+            // তাৎক্ষণিক Gullak থেকে টাকা কাটা হবে
+            await db.collection('users').doc(currentUserData.uid).update({
+                'gullak.balance': firebase.firestore.FieldValue.increment(-amt)
+            });
+            
+            // অ্যাডমিনের কাছে রিকোয়েস্ট যাবে
+            await db.collection('admin_requests').add({
+                uid: currentUserData.uid, 
+                name: currentUserData.fullname,
+                amount: amt, 
+                fee: fee,
+                payout: payout,
+                upi: upi,
+                type: 'gullakWithdraw', 
+                status: 'pending', 
+                timestamp: Date.now()
+            });
+            Buffer.hide(); showToast('উইথড্র রিকোয়েস্ট অ্যাডমিনের কাছে পাঠানো হয়েছে!');
+            closeGullakScreen();
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৪. অ্যাডমিন প্যানেল লজিক
+    const existingAdminModalForGullak = window.openAdminModal;
+    window.openAdminModal = function(type) {
+        if(type === 'gullakReq') {
+            document.getElementById('adminModalOverlay').style.display = 'flex';
+            const body = document.getElementById('adminModalBody');
+            document.getElementById('adminModalTitle').innerHTML = '<i class="fas fa-piggy-bank" style="color:#1abc9c;"></i> Gullak Withdrawals';
+            body.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+            
+            db.collection('admin_requests').where('type','==','gullakWithdraw').where('status','==','pending').get().then(snap => {
+                let html = '';
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    html += `
+                    <div class="admin-req-item" style="border-left:4px solid #1abc9c;">
+                        <strong style="color:#1abc9c; font-size:16px;"><i class="fas fa-user"></i> ${d.name}</strong><br>
+                        <div style="font-size:13px; color:#ddd; margin-top:5px; word-break:break-word;">
+                            Transfer to: <span style="color:var(--primary); font-weight:bold; user-select:all;">${d.upi}</span>
+                        </div>
+                        <div style="background:#000; padding:10px; border-radius:8px; margin-top:8px; font-size:13px; color:#ddd;">
+                            <strong>Req Amount:</strong> ₹${d.amount}<br>
+                            <strong>Maint. Fee (5%):</strong> <span style="color:var(--danger);">-₹${d.fee}</span><br>
+                            <strong>Final Payout:</strong> <span style="color:var(--success); font-size:16px; font-weight:bold;">₹${d.payout}</span>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-approve" onclick="adminGullakAction('${doc.id}', '${d.uid}', 'approve', ${d.amount}, ${d.payout})">Approve (Paid)</button>
+                            <button class="btn-reject" onclick="adminGullakAction('${doc.id}', '${d.uid}', 'reject', ${d.amount}, ${d.payout})">Reject (Refund)</button>
+                        </div>
+                    </div>`;
+                });
+                body.innerHTML = html || '<div style="text-align:center;color:#aaa;">No pending Gullak requests</div>';
+            });
+            return;
+        }
+        existingAdminModalForGullak(type);
+    };
+
+    window.adminGullakAction = async function(docId, uid, action, fullAmt, payout) {
+        Buffer.show('Processing...');
+        try {
+            if(action === 'reject') {
+                // রিজেক্ট হলে টাকা আবার Gullak-এ ফেরত যাবে
+                await db.collection('users').doc(uid).update({
+                    'gullak.balance': firebase.firestore.FieldValue.increment(fullAmt)
+                });
+                if(window.addNotification) window.addNotification(uid, 'Gullak Withdrawal Rejected', `আপনার ₹${fullAmt} Gullak উইথড্র রিকোয়েস্টটি বাতিল করা হয়েছে এবং টাকা Gullak-এ ফেরত দেওয়া হয়েছে।`, 'error');
+            } else {
+                addHistoryRecord(uid, `Gullak Withdrawal Successful (Fee: ₹${fullAmt - payout})`, fullAmt, 'debit');
+                if(window.addNotification) window.addNotification(uid, 'Gullak Withdrawal Approved', `আপনার ₹${fullAmt} Gullak উইথড্র রিকোয়েস্টটি সম্পূর্ণ হয়েছে। আপনি পেয়েছেন ₹${payout}।`, 'success');
+            }
+            await db.collection('admin_requests').doc(docId).update({ status: action });
+            Buffer.hide(); showToast(`Gullak request ${action}d!`); openAdminModal('gullakReq');
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+})();
+</script>
+<!-- ================= [ END GULLAK SYSTEM UPDATE ] ================= -->
+<!-- ================= [ OVERRIDE UPDATE: PRO GULLAK MULTI-PAGE & UI FIX ] ================= -->
+<style>
+  /* Premium Professional Gullak Visual CSS */
+  .gullak-premium-wrapper { display: flex; flex-direction: column; align-items: center; margin: 30px 0; }
+  
+  /* ভাঁড়ের ওপরের অংশ (Neck) */
+  .gullak-neck {
+      width: 75px; height: 25px; 
+      background: linear-gradient(to right, #78281f, #d35400, #e67e22, #d35400, #78281f);
+      border-radius: 12px 12px 0 0; position: relative; z-index: 2;
+      box-shadow: inset 0 -5px 10px rgba(0,0,0,0.6), 0 5px 10px rgba(0,0,0,0.4);
+      border: 2px solid #512e0b; border-bottom: none;
+  }
+  
+  /* ভাঁড়ের মূল অংশ (Body) */
+  .gullak-body {
+      width: 170px; height: 180px; 
+      background: radial-gradient(circle at 35% 35%, #e67e22, #ba4a00, #78281f, #3e1404);
+      border-radius: 45% 45% 50% 50% / 55% 55% 45% 45%; 
+      position: relative; overflow: hidden;
+      box-shadow: inset -15px -15px 25px rgba(0,0,0,0.7), 0 15px 30px rgba(0,0,0,0.6);
+      border: 2px solid #512e0b; display: flex; justify-content: center; align-items: flex-end;
+  }
+  
+  /* সোনালী তরল (Golden Liquid) */
+  .gullak-gold-liquid {
+      width: 100%; 
+      background: linear-gradient(0deg, rgba(212,175,55,0.9), rgba(255,215,0,0.95));
+      box-shadow: 0 -5px 25px rgba(255,215,0,0.8);
+      transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+      border-top: 3px solid rgba(255, 255, 255, 0.6); 
+      position: absolute; bottom: 0; left: 0;
+  }
+  
+  /* কয়েন ফেলার জায়গা (Coin Slot) */
+  .gullak-slot {
+      position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+      width: 65px; height: 8px; background: #2c0e03; border-radius: 10px;
+      box-shadow: inset 0 3px 6px rgba(0,0,0,0.9), 0 1px 1px rgba(255,255,255,0.15); z-index: 3;
+  }
+  
+  /* পার্সেন্টেজ টেক্সট */
+  .gullak-percentage {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 30px; font-weight: 900; color: #fff; 
+      text-shadow: 0 4px 8px rgba(0,0,0,0.9), 0 0 15px rgba(255,215,0,0.5); z-index: 5;
+  }
+</style>
+
+<script>
+(function initProGullakUpdate() {
+    // [FIX]: অবাঞ্ছিত Trusted Loan Card (Level up loan) যেন অন্য পেজে না দেখায় তার ফিক্স
+    // এটিকে মূল বডি থেকে সরিয়ে সরাসরি হোমস্ক্রিন কন্টেইনারের ভেতরে ঢুকিয়ে দেওয়া হচ্ছে।
+    const fixTrustedLoanVisibility = () => {
+        const trustedCard = document.getElementById('trustedLoanCard');
+        const homeScreen = document.getElementById('homeScreen');
+        if(trustedCard && homeScreen && trustedCard.parentNode !== homeScreen) {
+            homeScreen.appendChild(trustedCard);
+        }
+    };
+
+    // ১. মেইন Gullak পেজ
+    window.openGullakScreen = function() {
+        if(!currentUserData) return showToast('Please login');
+        fixTrustedLoanVisibility(); // পেজ ওপেন হওয়ার সময় ফিক্স অ্যাপ্লাই
+
+        const gullakData = currentUserData.gullak || { balance: 0, lockLimit: 0 };
+        const maxLimit = 20000;
+        const percent = Math.min((gullakData.balance / maxLimit) * 100, 100);
+
+        // পুরনো পেজ মুছে নতুন পেজ তৈরি
+        if(document.getElementById('gullakSubPage')) document.getElementById('gullakSubPage').remove();
+        if(document.getElementById('gullakWithdrawPage')) document.getElementById('gullakWithdrawPage').remove();
+
+        const subPage = document.createElement('div');
+        subPage.id = 'gullakSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeGullakScreen()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-piggy-bank" style="color:#1abc9c;"></i> My Gullak</h3>
+          </div>
+          <div style="padding:10px;">
+            <p style="color:#aaa; font-size:13px; margin-bottom:10px; text-align:center;">₹10 থেকে ₹20,000 পর্যন্ত জমা করুন এবং নিজের টার্গেট সেট করুন!</p>
+            
+            <!-- Professional Gullak Visual -->
+            <div class="gullak-premium-wrapper">
+                <div class="gullak-neck"></div>
+                <div class="gullak-body">
+                    <div class="gullak-slot"></div>
+                    <div class="gullak-gold-liquid" style="height: ${percent}%;"></div>
+                    <div class="gullak-percentage">${percent.toFixed(1)}%</div>
+                </div>
+                <div style="margin-top:25px; font-size:24px; font-weight:900; color:var(--gold); text-shadow: 0 0 15px rgba(255,215,0,0.4);">
+                    জমা: ₹<span>${gullakData.balance.toFixed(0)}</span> <span style="font-size:16px; color:#888;">/ ₹20,000</span>
+                </div>
+            </div>
+            
+            <!-- Add Money Section -->
+            <div style="background:linear-gradient(145deg, rgba(26, 188, 156,0.1), rgba(0,0,0,0.5)); padding:20px; border-radius:15px; margin-top:25px; border:1px solid rgba(26, 188, 156,0.3); box-shadow:0 10px 20px rgba(0,0,0,0.4);">
+                <label style="color:#ddd; font-size:14px; margin-bottom:12px; display:block; font-weight:bold;">টাকা জমা করুন (মেইন ওয়ালেট থেকে)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="gullakAddAmt" class="auth-input" placeholder="Amount (Min ₹10)" style="margin:0; flex:1; font-size:16px;">
+                    <button class="auth-btn" style="background:#1abc9c; color:#000; width:auto; padding:12px 25px; font-size:16px; font-weight:900;" onclick="depositToGullak()"><i class="fas fa-plus"></i> Add</button>
+                </div>
+            </div>
+
+            <!-- Limit Lock Section -->
+            <div style="background:#111; padding:20px; border-radius:15px; margin-top:20px; border:1px solid #333;">
+                <label style="color:#ddd; font-size:14px; margin-bottom:12px; display:block; font-weight:bold;">লক লিমিট সেট করুন (০% - ১০০%)</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+                    <input type="range" min="0" max="100" value="${gullakData.lockLimit}" id="gullakLockSlider" oninput="document.getElementById('lockDisplay').innerText=this.value+'%'" style="flex:1; accent-color:#1abc9c;">
+                    <strong style="color:var(--primary); font-size:20px; min-width:55px; text-align:right;" id="lockDisplay">${gullakData.lockLimit}%</strong>
+                </div>
+                <button class="btn-outline" style="border-color:#1abc9c; color:#1abc9c; margin-top:15px; width:100%;" onclick="setGullakLockLimit()">লক লিমিট আপডেট করুন</button>
+                <p style="font-size:12px; color:#aaa; margin-top:10px; line-height:1.5;">* সেট করা লক লিমিট পূর্ণ না হওয়া পর্যন্ত আপনি টাকা তুলতে পারবেন না।</p>
+            </div>
+            
+            <!-- Withdraw Page Button (New Page) -->
+            <button class="auth-btn" style="background:linear-gradient(135deg, #e74c3c, #c0392b); color:#fff; margin-top:25px; padding:18px; font-size:16px; border-radius:12px; font-weight:900; box-shadow:0 10px 20px rgba(231,76,60,0.4);" onclick="openGullakWithdrawScreen()"><i class="fas fa-money-check-alt"></i> Withdraw From Gullak</button>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+    };
+
+    window.closeGullakScreen = function(){ 
+        const el = document.getElementById('gullakSubPage'); 
+        if(el) el.remove(); 
+        openPage('homeScreen'); 
+    };
+
+    // ২. সম্পূর্ণ নতুন Withdraw পেজ
+    window.openGullakWithdrawScreen = function() {
+        const gullakData = currentUserData.gullak || { balance: 0, lockLimit: 0 };
+        const maxLimit = 20000;
+        const percent = Math.min((gullakData.balance / maxLimit) * 100, 100);
+
+        let isLocked = (percent < gullakData.lockLimit && gullakData.lockLimit > 0);
+
+        if(document.getElementById('gullakWithdrawPage')) document.getElementById('gullakWithdrawPage').remove();
+
+        const withdrawPage = document.createElement('div');
+        withdrawPage.id = 'gullakWithdrawPage';
+        withdrawPage.className = 'page-screen screen-transition';
+        withdrawPage.style.display = 'block';
+
+        let content = '';
+        if(isLocked) {
+            content = `
+                <div style="text-align:center; padding:40px 15px;">
+                    <div style="background:rgba(243, 156, 18, 0.1); width:100px; height:100px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 25px; border:2px dashed var(--warning);">
+                        <i class="fas fa-lock fa-3x" style="color:var(--warning);"></i>
+                    </div>
+                    <h3 style="color:var(--warning); margin-bottom:15px; font-size:22px;">Withdrawal Locked!</h3>
+                    <p style="color:#ddd; font-size:15px; line-height:1.6; background:#111; padding:20px; border-radius:12px; border:1px solid #333;">
+                        আপনি <strong>${gullakData.lockLimit}%</strong> লক লিমিট সেট করেছেন, কিন্তু আপনার বর্তমান জমা <strong>${percent.toFixed(1)}%</strong>।<br><br>লক লিমিট পূর্ণ না হওয়া পর্যন্ত আপনি টাকা তুলতে পারবেন না।
+                    </p>
+                    <button class="btn-outline" style="margin-top:30px; border-color:var(--warning); color:var(--warning); padding:15px; font-size:16px;" onclick="openGullakScreen()"><i class="fas fa-arrow-left"></i> Back to Gullak</button>
+                </div>
+            `;
+        } else {
+            content = `
+                <div style="padding:10px;">
+                    <div style="background:rgba(231, 76, 60, 0.05); border:1px solid #e74c3c; padding:25px; border-radius:15px; text-align:center; margin-bottom:25px; box-shadow:0 10px 20px rgba(231,76,60,0.1);">
+                        <p style="color:#aaa; font-size:14px; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">Gullak Available Balance</p>
+                        <h2 style="color:var(--gold); font-size:35px; text-shadow:0 0 15px rgba(255,215,0,0.3);">₹${gullakData.balance.toFixed(0)}</h2>
+                    </div>
+                    
+                    <div style="background:#111; padding:20px; border-radius:15px; border:1px solid #333;">
+                        <p style="font-size:14px; color:#ccc; margin-bottom:20px; line-height:1.6; background:rgba(255,255,255,0.05); padding:15px; border-radius:10px; border-left:4px solid #e74c3c;">
+                            টাকা তোলার সময় <strong>5% মেইনটেনেন্স চার্জ</strong> কাটা হবে। কোনো অতিরিক্ত সুদ বা হিডেন চার্জ নেই।
+                        </p>
+                        
+                        <label style="color:#ddd; font-size:14px; margin-bottom:10px; display:block; font-weight:bold;">Withdraw Amount</label>
+                        <input type="number" id="gullakWdAmt" class="auth-input" placeholder="Enter Amount" style="font-size:16px; margin-bottom:20px;" oninput="calcGullakWithdrawPreview()">
+                        
+                        <label style="color:#ddd; font-size:14px; margin-bottom:10px; display:block; font-weight:bold;">UPI ID / Bank Details</label>
+                        <input type="text" id="gullakWdUpi" class="auth-input" placeholder="e.g. 9876543210@ybl" style="font-size:16px;">
+                        
+                        <div style="background:#0a0a0f; padding:18px; border-radius:12px; margin-top:25px; border:1px solid #222;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:15px; color:#ccc;">
+                                <span>Maintenance Fee (5%):</span>
+                                <span style="color:var(--danger); font-weight:bold;">- ₹<span id="gullakWdFeePreview">0</span></span>
+                            </div>
+                            <hr style="border:0; border-top:1px dashed #444; margin:15px 0;">
+                            <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:900;">
+                                <span>You will receive:</span>
+                                <span style="color:var(--success);">₹<span id="gullakWdFinalPreview">0</span></span>
+                            </div>
+                        </div>
+                        
+                        <button class="auth-btn" style="background:linear-gradient(135deg, #e74c3c, #c0392b); color:#fff; margin-top:25px; font-size:16px; padding:18px; border-radius:12px; box-shadow:0 10px 20px rgba(231,76,60,0.3);" onclick="withdrawFromGullakPro()"><i class="fas fa-paper-plane"></i> Submit Withdraw Request</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        withdrawPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="openGullakScreen()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-money-check-alt" style="color:#e74c3c;"></i> Withdraw Gullak</h3>
+          </div>
+          ${content}
+        `;
+
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(withdrawPage);
+    };
+
+    window.calcGullakWithdrawPreview = function() {
+        const amt = parseInt(document.getElementById('gullakWdAmt').value) || 0;
+        const fee = Math.ceil(amt * 0.05);
+        const final = amt > 0 ? amt - fee : 0;
+        document.getElementById('gullakWdFeePreview').innerText = fee;
+        document.getElementById('gullakWdFinalPreview').innerText = final;
+    };
+
+    // উইথড্র প্রসেসটি (Withdraw logic) নতুন ফাংশনে রি-ম্যাপ করা হলো
+    window.withdrawFromGullakPro = async function() {
+        const amt = parseInt(document.getElementById('gullakWdAmt').value);
+        const upi = document.getElementById('gullakWdUpi').value.trim();
+        const gData = currentUserData.gullak || { balance: 0 };
+
+        if(!amt || amt <= 0) return showToast('সঠিক পরিমাণ লিখুন');
+        if(amt > gData.balance) return showToast('Gullak-এ পর্যাপ্ত ব্যালেন্স নেই');
+        if(!upi) return showToast('UPI বা ব্যাংক ডিটেলস দিন');
+
+        const fee = Math.ceil(amt * 0.05);
+        const payout = amt - fee;
+
+        const isConfirm = await customConfirm(`₹${amt} উইথড্র করবেন? 5% চার্জ (₹${fee}) কাটা হবে। আপনি পাবেন ₹${payout}।`);
+        if(!isConfirm) return;
+
+        Buffer.show('Submitting Request...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({
+                'gullak.balance': firebase.firestore.FieldValue.increment(-amt)
+            });
+            await db.collection('admin_requests').add({
+                uid: currentUserData.uid, name: currentUserData.fullname,
+                amount: amt, fee: fee, payout: payout, upi: upi,
+                type: 'gullakWithdraw', status: 'pending', timestamp: Date.now()
+            });
+            Buffer.hide(); showToast('উইথড্র রিকোয়েস্ট অ্যাডমিনের কাছে পাঠানো হয়েছে!');
+            openPage('homeScreen'); // রিকোয়েস্ট সাবমিট হয়ে গেলে হোমস্ক্রিনে চলে যাবে
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+})();
+</script>
+<!-- ================= [ END PRO GULLAK OVERRIDE ] ================= -->
+<!-- ================= [ FIX: GULLAK BUTTON LAYOUT ] ================= -->
+<script>
+setTimeout(() => {
+    // হোমস্ক্রিনের মেনু কার্ডগুলো খুঁজবে
+    const menuCards = document.querySelectorAll('.grid-menu .menu-card');
+    menuCards.forEach(card => {
+        // যে কার্ডটির ভেতরে "My Gullak" লেখা আছে, তার ফুল-উইডথ স্টাইলটি রিমুভ করে দেবে
+        if(card.innerText.includes('My Gullak') || card.innerHTML.includes('My Gullak')) {
+            card.style.gridColumn = 'auto'; // এটিকে সাধারণ চারকোনা বক্সে পরিণত করবে
+        }
+    });
+}, 3000); // পেজ লোড হওয়ার পর ফিক্স অ্যাপ্লাই হবে
+</script>
+<style>
+    /* ১. অ্যাডমিন প্যানেলের ক্যাটাগরি ভিত্তিক ডিজাইন */
+    .admin-category-title {
+        color: var(--primary);
+        font-size: 15px;
+        font-weight: 700;
+        margin: 25px 0 12px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .admin-grid-new {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .admin-card-new {
+        background: linear-gradient(145deg, #1f1f2e, #151520);
+        border: 1px solid #333;
+        border-radius: 15px;
+        padding: 18px 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.3s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .admin-card-new:active { transform: scale(0.95); }
+    .admin-card-new i { font-size: 24px; margin-bottom: 10px; }
+    .admin-card-new h4 { font-size: 13px; font-weight: 600; color:#ddd; }
+</style>
+
+<script>
+(function applyMasterFixes() {
+    // ==========================================
+    // ১. অ্যাডমিন প্যানেল প্রফেশনাল রি-ডিজাইন
+    // ==========================================
+    setTimeout(() => {
+        const adminScreen = document.getElementById('adminScreen');
+        if(adminScreen) {
+            adminScreen.innerHTML = `
+                <div class="page-header" style="justify-content:center; flex-direction: column; text-align: center; border-bottom: none; margin-bottom:10px;">
+                    <h3 style="color:var(--danger); font-size:26px; margin-bottom: 5px;"><i class="fas fa-user-shield"></i> Admin Panel</h3>
+                    <p style="color:#aaa; font-size:12px;">Manage Star Finance Operations</p>
+                </div>
+
+                <div class="admin-category-title"><i class="fas fa-chart-line"></i> Overview & Users</div>
+                <div class="admin-grid-new">
+                    <div class="admin-card-new" onclick="openAdminModal('analytics')" style="border-color:#9b59b6; background: rgba(155, 89, 182, 0.05);">
+                        <i class="fas fa-chart-pie" style="color:#9b59b6;"></i><h4>Analytics</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('activeLoans')" style="border-color:#e67e22; background: rgba(230, 126, 34, 0.05);">
+                        <i class="fas fa-users" style="color:#e67e22;"></i><h4>Active Users</h4>
+                    </div>
+                </div>
+
+                <div class="admin-category-title"><i class="fas fa-hand-holding-usd"></i> Loan Dept.</div>
+                <div class="admin-grid-new">
+                    <div class="admin-card-new" onclick="openAdminModal('loan')" style="border-color:var(--gold);">
+                        <i class="fas fa-file-invoice-dollar" style="color:var(--gold);"></i><h4>Main Loans</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('smallLoan')" style="border-color:#f1c40f; background: rgba(241, 196, 15, 0.05);">
+                        <i class="fas fa-coins" style="color:#f1c40f;"></i><h4>Small Loans</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('trustedLoan')" style="border-color:#FFD700; background:linear-gradient(145deg, rgba(255,215,0,0.1), rgba(0,0,0,0.5)); grid-column: 1 / span 2;">
+                        <i class="fas fa-crown" style="color:#FFD700;"></i><h4 style="color:#FFD700;">Trusted (VIP) Loans</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('loanRepay')" style="border-color:var(--success); grid-column: 1 / span 2;">
+                        <i class="fas fa-receipt" style="color:var(--success);"></i><h4>Loan Repayments</h4>
+                    </div>
+                </div>
+                
+                <div class="admin-category-title"><i class="fas fa-piggy-bank"></i> Deposits & Savings</div>
+                <div class="admin-grid-new">
+                    <div class="admin-card-new" onclick="openAdminModal('fd')" style="border-color:#3498db;">
+                        <i class="fas fa-piggy-bank" style="color:#3498db;"></i><h4>FD Requests</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('fdLoan')" style="border-color:#e84393; background:rgba(232, 67, 147, 0.05);">
+                        <i class="fas fa-handshake" style="color:#e84393;"></i><h4>FD Loans</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('gullakReq')" style="border-color:#1abc9c; background:rgba(26, 188, 156, 0.05); grid-column: 1 / span 2;">
+                        <i class="fas fa-piggy-bank" style="color:#1abc9c;"></i><h4>Gullak Withdrawals</h4>
+                    </div>
+                </div>
+
+                <div class="admin-category-title"><i class="fas fa-bolt"></i> Emergency & Wallet</div>
+                <div class="admin-grid-new">
+                    <div class="admin-card-new" onclick="openAdminEmgManager()" style="border-color:#e67e22; background: linear-gradient(145deg, rgba(230, 126, 34, 0.15), rgba(0,0,0,0.6));">
+                        <i class="fas fa-bolt" style="color:#e67e22;"></i><h4>Emg Needs</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('emgRepay')" style="border-color:#3498db; background:rgba(52, 152, 219, 0.05);">
+                        <i class="fas fa-receipt" style="color:#3498db;"></i><h4>Emg Repay</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('wallet')" style="border-color:var(--primary);">
+                        <i class="fas fa-wallet" style="color:var(--primary);"></i><h4>Wallet Add</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('withdraw')" style="border-color:var(--success);">
+                        <i class="fas fa-money-check-alt" style="color:var(--success);"></i><h4>Withdraw</h4>
+                    </div>
+                </div>
+
+                <div class="admin-category-title"><i class="fas fa-cogs"></i> Support & Settings</div>
+                <div class="admin-grid-new">
+                    <div class="admin-card-new" onclick="openAdminFeedback()" style="border-color:#b2d942; background: rgba(178, 217, 66, 0.05);">
+                        <i class="fas fa-envelope-open-text" style="color:#b2d942;"></i><h4>Feedback</h4>
+                    </div>
+                    <div class="admin-card-new" onclick="openAdminModal('forgotPassword')" style="border-color:var(--warning);">
+                        <i class="fas fa-key" style="color:var(--warning);"></i><h4>Pass Reset</h4>
+                    </div>
+                </div>
+                <div style="height:50px;"></div>
+            `;
+        }
+    }, 3500); // সব স্ক্রিপ্ট লোড হওয়ার পর অ্যাডমিন প্যানেল রেন্ডার হবে
+
+
+    // ==========================================
+    // ২. অটো স্ক্রোল টু টপ (Auto Scroll to Top Fix)
+    // ==========================================
+    function scrollToTop() {
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            
+            const dashboard = document.querySelector('.dashboard-container');
+            if (dashboard) dashboard.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            document.querySelectorAll('.page-screen').forEach(screen => {
+                if(screen.style.display === 'block') {
+                    screen.scrollTop = 0;
+                    screen.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+        }, 50);
+    }
+
+    // যেসব ফাংশনে ক্লিক করলে পেজ চেঞ্জ হয়, সেগুলোকে ইন্টারসেপ্ট করা হচ্ছে
+    const functionsToPatch = [
+        'openPage', 'openLoanApply', 'openSmallLoan', 'openFdLoan',
+        'openGullakScreen', 'openGullakWithdrawScreen', 'openEmgMainScreen', 'openEmgForm', 'openProfilePage'
+    ];
+
+    functionsToPatch.forEach(fnName => {
+        if (window[fnName]) {
+            const originalFn = window[fnName];
+            window[fnName] = function(...args) {
+                const result = originalFn.apply(this, args);
+                scrollToTop(); // পেজ খোলার সাথে সাথেই স্ক্রোল টপ হবে
+                return result;
+            };
+        }
+    });
+
+
+    // ==========================================
+    // ৩. Trusted (VIP) Loan হাইড এবং ফিক্স
+    // ==========================================
+    function isolateTrustedLoan() {
+        const trustedCard = document.getElementById('trustedLoanCard');
+        const homeScreen = document.getElementById('homeScreen');
+        
+        if (trustedCard && homeScreen) {
+            // কার্ডটিকে সরাসরি হোমস্ক্রিনের শেষে নিয়ে আসা হচ্ছে (যাতে অন্য কোথাও ভাসতে না পারে)
+            homeScreen.appendChild(trustedCard);
+            
+            // নিশ্চিত করা হচ্ছে যেন এটি শুধু হোমস্ক্রিনেই দেখা যায়
+            trustedCard.style.display = 'block';
+            trustedCard.style.marginTop = '25px';
+            trustedCard.style.marginBottom = '20px';
+        }
+    }
+    
+    // প্রতিবার পেজ চেঞ্জ হওয়ার সময় চেক করবে 
+    const ogOpenPageForTrusted = window.openPage;
+    window.openPage = function(pageId) {
+        if(ogOpenPageForTrusted) ogOpenPageForTrusted(pageId);
+        isolateTrustedLoan();
+        scrollToTop();
+    };
+
+    // পেজ লোড হওয়ার পর একবার রান করবে
+    setTimeout(isolateTrustedLoan, 2000);
+
+})();
+</script>
 </body>
 </html>
