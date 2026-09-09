@@ -4113,5 +4113,104 @@ setTimeout(() => {
 
 })();
 </script>
+  <!-- ================= [ STAR FINANCE - ZUU PAY OVERRIDE ] ================= -->
+<style>
+    .btn-zuu-pay {
+        background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; border: 2px solid rgba(255, 215, 0, 0.8);
+        padding: 15px; border-radius: 12px; width: 100%; font-weight: 900; font-size: 15px; cursor: pointer;
+        margin-top: 10px; box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); display: flex; align-items: center; justify-content: center; gap: 8px; animation: zuuPulse 2s infinite;
+    }
+    .btn-zuu-pay:active { transform: scale(0.95); }
+    @keyframes zuuPulse { 0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); } 50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.9); } 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); } }
+</style>
+<script>
+(function initZuuPayIntegration() {
+    // ১. URL প্যারামিটার চেক করে সাকসেস পেমেন্ট রিসিভ করা
+    window.addEventListener('load', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('zuu_success') === 'true') {
+            const checkUser = setInterval(async () => {
+                if(currentUserData) {
+                    clearInterval(checkUser);
+                    const creditedAmount = parseFloat(urlParams.get('credited'));
+                    const type = urlParams.get('type');
+                    
+                    Buffer.show('Zuu Pay থেকে ডেটা আপডেট হচ্ছে...');
+                    try {
+                        if(type === 'wallet') {
+                            await db.collection('users').doc(currentUserData.uid).update({ wallet: firebase.firestore.FieldValue.increment(creditedAmount) });
+                            addHistoryRecord(currentUserData.uid, 'Wallet Recharge (Zuu Pay)', creditedAmount, 'credit');
+                            showToast(`₹${creditedAmount} Zuu Pay থেকে সফলভাবে যুক্ত হয়েছে!`);
+                        } else if(type === 'loanRepay' && currentUserData.activeLoan) {
+                            const due = currentUserData.activeLoan.amount + (currentUserData.activeLoan.amount * currentUserData.activeLoan.interest) + (currentUserData.activeLoan.penalty || 0);
+                            const newPaid = (currentUserData.activeLoan.paid || 0) + creditedAmount;
+                            let newCibil = Math.min((currentUserData.cibilScore || 200) + 30, 900);
+                            
+                            if(newPaid >= due){
+                                await db.collection('users').doc(currentUserData.uid).update({ 'activeLoan': null, loanStatus: 'kyc_done', cibilScore: newCibil });
+                            } else {
+                                await db.collection('users').doc(currentUserData.uid).update({ 'activeLoan.paid': newPaid, cibilScore: newCibil });
+                            }
+                            addHistoryRecord(currentUserData.uid, 'Loan EMI Paid (Zuu Pay)', creditedAmount, 'credit');
+                            showToast(`Zuu Pay দিয়ে ₹${creditedAmount} লোন শোধ হয়েছে!`);
+                        }
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        updateUI();
+                    } catch(e) { showToast('Error: ' + e.message); }
+                    Buffer.hide();
+                }
+            }, 500);
+        }
+    });
+
+    // ২. Zuu Pay কল করার ফাংশন
+    window.initiateZuuPay = function(amount, purpose) {
+        if(!currentUserData) return showToast('Please login first!');
+        const amt = parseFloat(amount);
+        if(!amt || amt <= 0) return showToast('সঠিক অ্যামাউন্ট দিন');
+        
+        const discount = amt * 0.02; // ২% ডিসকাউন্ট
+        const payAmount = amt - discount;
+        
+        const paymentData = { starUid: currentUserData.uid, starFullname: currentUserData.fullname, originalAmount: amt, amount: payAmount, discount: discount, type: purpose };
+        const encodedData = encodeURIComponent(JSON.stringify(paymentData));
+        const returnUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+        
+        // ** নিচে আপনার Zuu Pay এর লাইভ লিংক দিন **
+        const ZUU_PAY_URL = "https://sudiptak503-maker.github.io/Zuu-Pay";
+
+        Buffer.show('Zuu Pay-তে নিয়ে যাওয়া হচ্ছে...');
+        setTimeout(() => { window.location.href = `${ZUU_PAY_URL}/?action=payment&data=${encodedData}&returnUrl=${returnUrl}`; }, 1000);
+    };
+
+    // ৩. ডাইনামিক বাটন ইনজেকশন (UI পরিবর্তন না করেই বাটন বসানো)
+    const ogRenderLoan = window.renderLoanSection;
+    window.renderLoanSection = function() {
+        if(ogRenderLoan) ogRenderLoan();
+        setTimeout(() => {
+            const loanBtnContainer = document.querySelector('#loanDynamicContent .auth-btn')?.parentElement;
+            if(loanBtnContainer && !document.getElementById('zuuLoanBtn') && document.getElementById('loanDynamicContent').innerHTML.includes('repayFromWallet')) {
+                const emiMatch = document.getElementById('loanDynamicContent').innerHTML.match(/repayFromWallet\((\d+)\)/);
+                if(emiMatch && emiMatch[1]) {
+                    loanBtnContainer.insertAdjacentHTML('beforeend', `<button id="zuuLoanBtn" class="btn-zuu-pay" onclick="initiateZuuPay(${emiMatch[1]}, 'loanRepay')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে পে করুন (২% ছাড়)</button>`);
+                }
+            }
+        }, 150);
+    };
+
+    const ogOpenAddMoney = window.openAddMoneyModal;
+    window.openAddMoneyModal = function() {
+        if(ogOpenAddMoney) ogOpenAddMoney();
+        setTimeout(() => {
+            const upiBtn = document.querySelector('#addMoneyModal button[onclick="initiateWalletUPI()"]');
+            if(upiBtn && !document.getElementById('zuuWalletBtn')) {
+                upiBtn.insertAdjacentHTML('afterend', `<button id="zuuWalletBtn" class="btn-zuu-pay" onclick="initiateZuuPay(document.getElementById('addMoneyInput').value, 'wallet')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে অ্যাড করুন (২% ছাড়)</button>`);
+            }
+        }, 150);
+    };
+})();
+</script>
+<!-- ================= [ END STAR FINANCE OVERRIDE ] ================= -->
+
 </body>
 </html>
