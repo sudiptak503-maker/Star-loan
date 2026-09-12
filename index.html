@@ -923,8 +923,9 @@
     if(loan && (status === 'active' || loan.status === 'active' || loan.status === 'default')){
       const due = loan.amount + (loan.amount * loan.interest) + (loan.penalty || 0);
       const paid = loan.paid || 0;
-      const totalMonths = loan.type === 'lvl_1' ? 1 : loan.type === 'lvl_3' ? 3 : loan.type === 'lvl_6' ? 6 : loan.type === 'lvl_12' ? 12 : 1;
-      const emi = totalMonths > 0 ? Math.ceil(due / totalMonths) : due;
+      // Dynamic EMI calculation based on loan type ending number (e.g. trusted_3, fdl_6)
+const totalMonths = (loan.type && loan.type.includes('_') && !isNaN(loan.type.split('_').pop())) ? parseInt(loan.type.split('_').pop()) : 1;
+ const emi = totalMonths > 0 ? Math.ceil(due / totalMonths) : due;
       const daysLeft = Math.floor((loan.dueDate - Date.now())/(1000*60*60*24));
       let dueStatusHtml = loan.status === 'default' ? `<span style="color:var(--danger);font-weight:bold;">Default (60+ days late)</span>` : daysLeft < 0 ? `<span style="color:var(--danger);font-weight:bold;">Overdue (${Math.abs(daysLeft)} days)</span>` : `<span>Due in ${daysLeft} days</span>`;
       html += `<div style="background:linear-gradient(145deg, rgba(0,242,254,0.1), rgba(0,0,0,0.6)); padding:25px; border-radius:18px; border:1px solid var(--primary); text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
@@ -2689,7 +2690,7 @@
         </div>
     </div>
 
-    <!-- Trusted Loan Apply Modal -->
+        <!-- Trusted Loan Apply Modal -->
     <div id="tlApplyModal" class="admin-modal-overlay" style="z-index:9000;">
         <div class="admin-modal-box" style="border: 2px solid #FFD700; background: #151520;">
             <button class="close-modal" onclick="document.getElementById('tlApplyModal').style.display='none'"><i class="fas fa-times"></i></button>
@@ -2703,17 +2704,17 @@
             
             <label style="color:#ddd; font-size:14px; margin-top:15px; display:block;">Select Duration</label>
             <div style="display:flex; gap:10px; margin-top:8px;">
-                <button class="btn-outline" style="flex:1; margin:0;" id="tlBtn3" onclick="selectTlDuration(3)">3 Months (15%)</button>
-                <button class="btn-outline" style="flex:1; margin:0; border-color:#555; color:#555;" id="tlBtn6" onclick="selectTlDuration(6)">6 Months (30%)</button>
+                <button class="btn-outline" style="flex:1; margin:0;" id="tlBtn3" onclick="selectTlDuration(3)">3 Months (25%)</button>
+                <button class="btn-outline" style="flex:1; margin:0; border-color:#555; color:#555;" id="tlBtn6" onclick="selectTlDuration(6)">6 Months (40%)</button>
             </div>
             
             <div style="background:#0a0a0f; padding:15px; border-radius:10px; margin-top:15px; border:1px solid #333; font-size:14px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Principal:</span> <strong>₹<span id="tlPrincipal">5000</span></strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Interest:</span> <strong style="color:#FFD700;">+ ₹<span id="tlInterest">750</span></strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Platform Fee (3%):</span> <strong style="color:var(--danger);">- ₹<span id="tlFee">150</span></strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Interest:</span> <strong style="color:#FFD700;">+ ₹<span id="tlInterest">1250</span></strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Platform Fee (5%):</span> <strong style="color:var(--danger);">- ₹<span id="tlFee">250</span></strong></div>
                 <hr style="border:0; border-top:1px dashed #444; margin:10px 0;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>To Bank/Wallet:</span> <strong style="color:var(--success); font-size:16px;">₹<span id="tlReceive">4850</span></strong></div>
-                <div style="display:flex; justify-content:space-between;"><span>Monthly EMI:</span> <strong style="color:#00f2fe; font-size:16px;">₹<span id="tlEmi">1917</span></strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>To Bank/Wallet:</span> <strong style="color:var(--success); font-size:16px;">₹<span id="tlReceive">4750</span></strong></div>
+                <div style="display:flex; justify-content:space-between;"><span>Monthly EMI:</span> <strong style="color:#00f2fe; font-size:16px;">₹<span id="tlEmi">2084</span></strong></div>
             </div>
             
             <button class="auth-btn" style="background:linear-gradient(135deg, #FFD700, #FFA500); color:#000; margin-top:15px;" onclick="submitTrustedLoan()"><i class="fas fa-paper-plane"></i> Submit Request</button>
@@ -2765,16 +2766,21 @@ window.selectTlDuration = function(months) {
     updateTlPreview();
 };
 
+// ==========================================
+// Trusted Loan Logic (Updated: 5% Fee, 25%/40% Interest)
+// ==========================================
 window.updateTlPreview = function() {
     const amt = parseInt(document.getElementById('tlAmountSlider').value);
     document.getElementById('tlAmountView').innerText = amt;
     document.getElementById('tlPrincipal').innerText = amt;
     
-    const intRate = tlSelectedMonths === 3 ? 0.15 : 0.30;
+    // ৩ মাসে ২৫%, ৬ মাসে ৪০% সুদ
+    const intRate = tlSelectedMonths === 3 ? 0.25 : 0.40;
     const interest = amt * intRate;
     document.getElementById('tlInterest').innerText = interest.toFixed(0);
     
-    const fee = amt * 0.03; // 3% platform fee
+    // ৫% প্ল্যাটফর্ম ফি (আগে ৩% ছিল)
+    const fee = amt * 0.05; 
     document.getElementById('tlFee').innerText = fee.toFixed(0);
     
     const receive = amt - fee;
@@ -2787,12 +2793,13 @@ window.updateTlPreview = function() {
 
 window.submitTrustedLoan = async function() {
     const amt = parseInt(document.getElementById('tlAmountSlider').value);
-    const intRate = tlSelectedMonths === 3 ? 0.15 : 0.30;
-    const fee = amt * 0.03;
+    // নতুন রেট অনুযায়ী সুদ এবং ফি
+    const intRate = tlSelectedMonths === 3 ? 0.25 : 0.40;
+    const fee = amt * 0.05;
     const receive = amt - fee;
     const loanType = 'trusted_' + tlSelectedMonths;
 
-    const isConfirm = await customConfirm(`Apply for ₹${amt} Trusted Loan? You will receive ₹${receive.toFixed(0)} after 3% platform fee deduction.`);
+    const isConfirm = await customConfirm(`Apply for ₹${amt} Trusted Loan? You will receive ₹${receive.toFixed(0)} after 5% platform fee deduction.`);
     if(!isConfirm) return;
     
     Buffer.show('Submitting...');
@@ -2821,6 +2828,7 @@ window.submitTrustedLoan = async function() {
         Buffer.hide(); showToast('Error: '+e.message); 
     }
 };
+
 
 // ৩. Fix Admin Buttons (Active Loans, Analytics, Trusted Loan)
 const existingOpenAdminModalLogic = window.openAdminModal;
@@ -4169,7 +4177,7 @@ setTimeout(() => {
         const amt = parseFloat(amount);
         if(!amt || amt <= 0) return showToast('সঠিক অ্যামাউন্ট দিন');
         
-        const discount = amt * 0.02; // ২% ডিসকাউন্ট
+        const discount = amt * 0.00; 
         const payAmount = amt - discount;
         
         const paymentData = { starUid: currentUserData.uid, starFullname: currentUserData.fullname, originalAmount: amt, amount: payAmount, discount: discount, type: purpose };
@@ -4192,7 +4200,8 @@ setTimeout(() => {
             if(loanBtnContainer && !document.getElementById('zuuLoanBtn') && document.getElementById('loanDynamicContent').innerHTML.includes('repayFromWallet')) {
                 const emiMatch = document.getElementById('loanDynamicContent').innerHTML.match(/repayFromWallet\((\d+)\)/);
                 if(emiMatch && emiMatch[1]) {
-                    loanBtnContainer.insertAdjacentHTML('beforeend', `<button id="zuuLoanBtn" class="btn-zuu-pay" onclick="initiateZuuPay(${emiMatch[1]}, 'loanRepay')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে পে করুন (২% ছাড়)</button>`);
+                                  loanBtnContainer.insertAdjacentHTML('beforeend', `<button id="zuuLoanBtn" class="btn-zuu-pay" onclick="initiateZuuPay(${emiMatch[1]}, 'loanRepay')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে পে করুন</button>`);
+      
                 }
             }
         }, 150);
@@ -4204,7 +4213,8 @@ setTimeout(() => {
         setTimeout(() => {
             const upiBtn = document.querySelector('#addMoneyModal button[onclick="initiateWalletUPI()"]');
             if(upiBtn && !document.getElementById('zuuWalletBtn')) {
-                upiBtn.insertAdjacentHTML('afterend', `<button id="zuuWalletBtn" class="btn-zuu-pay" onclick="initiateZuuPay(document.getElementById('addMoneyInput').value, 'wallet')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে অ্যাড করুন (২% ছাড়)</button>`);
+                          upiBtn.insertAdjacentHTML('afterend', `<button id="zuuWalletBtn" class="btn-zuu-pay" onclick="initiateZuuPay(document.getElementById('addMoneyInput').value, 'wallet')"><i class="fas fa-bolt"></i> Zuu Pay দিয়ে অ্যাড করুন</button>`);
+
             }
         }, 150);
     };
