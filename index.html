@@ -4221,6 +4221,928 @@ setTimeout(() => {
 })();
 </script>
 <!-- ================= [ END STAR FINANCE OVERRIDE ] ================= -->
+<!-- ================= [ NEW UPDATE: WEEKLY & ONE TIME LOAN (PRO UI) ] ================= -->
+<script>
+(function initNewLoanOptionsPro() {
+    // ১. হোম স্ক্রিনে ছোট চারকোনা (Grid) কার্ড যুক্ত করা
+    const injectNewLoansPro = () => {
+        const homeScreen = document.getElementById('homeScreen');
+        const trustedCard = document.getElementById('trustedLoanCard');
+        
+        // কার্ড আগে থেকে যুক্ত না থাকলে যুক্ত করবে
+        if (homeScreen && trustedCard && !document.getElementById('weeklyLoanMiniCard')) {
+            const newCardsHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:25px; margin-bottom:10px;">
+                <!-- Weekly Loan Mini Card -->
+                <div id="weeklyLoanMiniCard" onclick="openWeeklyLoanPro()" style="background: linear-gradient(145deg, rgba(0, 198, 255, 0.08), rgba(0,0,0,0.6)); border: 1px solid rgba(0, 198, 255, 0.4); border-radius: 18px; padding: 25px 15px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(0, 198, 255, 0.1);">
+                    <div style="font-size: 38px; color: #00c6ff; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(0, 198, 255, 0.4));"><i class="fas fa-calendar-week"></i></div>
+                    <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom:5px;">Weekly Loan</h4>
+                    <div style="font-size: 11px; color: #aaa; font-weight: 500;">₹100 - ₹500</div>
+                </div>
+
+                <!-- One Time Pay Mini Card -->
+                <div id="oneTimeLoanMiniCard" onclick="openOneTimeLoanPro()" style="background: linear-gradient(145deg, rgba(255, 8, 68, 0.08), rgba(0,0,0,0.6)); border: 1px solid rgba(255, 8, 68, 0.4); border-radius: 18px; padding: 25px 15px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(255, 8, 68, 0.1);">
+                    <div style="font-size: 38px; color: #ff0844; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(255, 8, 68, 0.4));"><i class="fas fa-bolt"></i></div>
+                    <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom:5px;">One Time Pay</h4>
+                    <div style="font-size: 11px; color: #aaa; font-weight: 500;">₹500 - ₹2000</div>
+                </div>
+            </div>
+            `;
+            // Trusted Loan কার্ডের ঠিক ওপরে ইনজেক্ট করা হচ্ছে
+            trustedCard.insertAdjacentHTML('beforebegin', newCardsHTML);
+        }
+    };
+
+    const ogUpdateUIForNewLoans = window.updateUI;
+    window.updateUI = function() {
+        if(ogUpdateUIForNewLoans) ogUpdateUIForNewLoans();
+        injectNewLoansPro();
+    };
+    setTimeout(injectNewLoansPro, 2000);
+
+    // ২. Weekly Loan Professional Page
+    window.openWeeklyLoanPro = function() {
+        if(!currentUserData) return showToast('Please login to apply');
+        const cibil = currentUserData.cibilScore || 0;
+        if(cibil < 200) return showToast('ন্যূনতম 200 CIBIL Score প্রয়োজন!');
+        if(currentUserData.loanStatus === 'active' || currentUserData.loanStatus === 'pending') return showToast('You already have an active/pending loan!');
+        if(!currentUserData.loanKYC || !currentUserData.loanKYC.name) return showToast('Please complete KYC profile first from Loan Section!');
+
+        // পপ-আপের বদলে প্রফেশনাল অ্যাপ পেজ তৈরি করা হচ্ছে
+        const subPage = document.createElement('div');
+        subPage.id = 'weeklyLoanSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeWeeklyLoanPro()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-calendar-week" style="color:#00c6ff;"></i> Weekly Loan</h3>
+          </div>
+          <div style="padding:10px;">
+            <p style="color:#aaa; font-size:13px; margin-bottom:15px; text-align:center;">সহজ ৪ সপ্তাহের কিস্তিতে পরিশোধ করুন।</p>
+            
+            <div class="loan-slider-container">
+              <label style="color:#00c6ff;">Loan Amount (₹100 - ₹500)</label>
+              <input type="range" min="100" max="500" value="100" step="50" id="wlAmountSlider" oninput="updateWlPreviewPro()" style="accent-color:#00c6ff;">
+              <div class="slider-values"><span>₹100</span><span>₹500</span></div>
+              <div class="selected-amount" style="color:#00c6ff;">₹<span id="wlAmountView">100</span></div>
+            </div>
+            
+            <div style="background:#111; padding:20px; border-radius:12px; margin-top:20px; border:1px solid #333; box-shadow:0 5px 15px rgba(0,0,0,0.5);">
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Principal:</span> <strong>₹<span id="wlPrincipal">100</span></strong></div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Interest (45%):</span> <strong style="color:#00c6ff;">+ ₹<span id="wlInterest">45</span></strong></div>
+              <hr style="border:0; border-top:1px dashed #444; margin:15px 0;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:16px;">
+                  <span>Total Payable:</span> <strong style="color:var(--danger);">₹<span id="wlTotal">145</span></strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:14px; color:#aaa; background:rgba(0,198,255,0.05); padding:10px; border-radius:8px;">
+                  <span>Weekly EMI (4 Parts):</span> <strong style="color:var(--success);">₹<span id="wlEmi">37</span></strong>
+              </div>
+            </div>
+            
+            <button class="auth-btn" style="background:linear-gradient(135deg, #00c6ff, #0072ff); color:#fff; margin-top:25px; padding:15px; font-size:16px; border-radius:12px; box-shadow:0 10px 20px rgba(0,198,255,0.3);" onclick="submitWeeklyLoanPro()"><i class="fas fa-paper-plane"></i> Submit Request</button>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+    };
+
+    window.closeWeeklyLoanPro = function() {
+        const el = document.getElementById('weeklyLoanSubPage');
+        if(el) el.remove();
+        openPage('homeScreen');
+    };
+
+    window.updateWlPreviewPro = function() {
+        const amt = parseInt(document.getElementById('wlAmountSlider').value);
+        document.getElementById('wlAmountView').innerText = amt;
+        document.getElementById('wlPrincipal').innerText = amt;
+        const interest = amt * 0.45;
+        document.getElementById('wlInterest').innerText = interest.toFixed(0);
+        const total = amt + interest;
+        document.getElementById('wlTotal').innerText = total.toFixed(0);
+        document.getElementById('wlEmi').innerText = Math.ceil(total / 4);
+    };
+
+    window.submitWeeklyLoanPro = async function() {
+        const amt = parseInt(document.getElementById('wlAmountSlider').value);
+        const interest = 0.45;
+        const isConfirm = await customConfirm(`Apply for ₹${amt} Weekly Loan with 45% interest?`);
+        if(!isConfirm) return;
+        
+        Buffer.show('Submitting...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+            await db.collection('admin_requests').add({
+                uid: currentUserData.uid, name: currentUserData.fullname, kyc: currentUserData.loanKYC || {},
+                amount: amt, type: 'loan', loanType: 'weekly_4', interest: interest, status: 'pending', timestamp: Date.now()
+            });
+            Buffer.hide(); closeWeeklyLoanPro();
+            showToast('Weekly Loan request sent!');
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৩. One Time Pay Loan Professional Page
+    let otSelectedType = 'onetime'; 
+    window.openOneTimeLoanPro = function() {
+        if(!currentUserData) return showToast('Please login to apply');
+        if(currentUserData.loanStatus === 'active' || currentUserData.loanStatus === 'pending') return showToast('You already have an active/pending loan!');
+        if(!currentUserData.loanKYC || !currentUserData.loanKYC.name) return showToast('Please complete KYC profile first from Loan Section!');
+
+        const subPage = document.createElement('div');
+        subPage.id = 'oneTimeLoanSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeOneTimeLoanPro()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-bolt" style="color:#ff0844;"></i> One Time Pay</h3>
+          </div>
+          <div style="padding:10px;">
+            <p style="color:#aaa; font-size:13px; margin-bottom:15px; text-align:center;">একবারে শোধ করুন অথবা ৪ সপ্তাহে ভাগ করে নিন।</p>
+            
+            <div class="loan-slider-container">
+              <label style="color:#ff0844;">Select Amount (₹500 - ₹2000)</label>
+              <input type="range" min="500" max="2000" value="500" step="100" id="otAmountSlider" oninput="updateOtPreviewPro()" style="accent-color:#ff0844;">
+              <div class="slider-values"><span>₹500</span><span>₹2000</span></div>
+              <div class="selected-amount" style="color:#ff0844;">₹<span id="otAmountView">500</span></div>
+            </div>
+
+            <label style="color:#ddd; font-size:14px; margin-top:20px; display:block; font-weight:bold;">Select Repayment Type</label>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-outline" style="flex:1; margin:0; border-color:#ff0844; color:#ff0844; padding:12px;" id="otBtnOne" onclick="selectOtTypePro('onetime')">1 Week (25%)</button>
+                <button class="btn-outline" style="flex:1; margin:0; border-color:#555; color:#555; padding:12px;" id="otBtnSplit" onclick="selectOtTypePro('split4')">4 Weeks (45%)</button>
+            </div>
+            
+            <div style="background:#111; padding:20px; border-radius:12px; margin-top:20px; border:1px solid #333; box-shadow:0 5px 15px rgba(0,0,0,0.5);">
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Principal:</span> <strong>₹<span id="otPrincipal">500</span></strong></div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>Interest:</span> <strong style="color:#ff0844;">+ ₹<span id="otInterest">125</span></strong></div>
+              <hr style="border:0; border-top:1px dashed #444; margin:15px 0;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:16px;">
+                  <span>Total Payable:</span> <strong style="color:var(--danger);">₹<span id="otTotal">625</span></strong>
+              </div>
+              <div id="otEmiContainer" style="display:none; justify-content:space-between; font-size:14px; color:#aaa; background:rgba(255,8,68,0.05); padding:10px; border-radius:8px;">
+                  <span>Weekly EMI (4 Parts):</span> <strong style="color:var(--success);">₹<span id="otEmi">157</span></strong>
+              </div>
+              <div id="otSingleContainer" style="display:flex; justify-content:space-between; font-size:14px; color:#aaa; background:rgba(255,8,68,0.05); padding:10px; border-radius:8px;">
+                  <span>Single Payment:</span> <strong style="color:var(--success);">₹<span id="otSingle">625</span></strong>
+              </div>
+            </div>
+            
+            <button class="auth-btn" style="background:linear-gradient(135deg, #ff0844, #ffb199); color:#fff; margin-top:25px; padding:15px; font-size:16px; border-radius:12px; box-shadow:0 10px 20px rgba(255,8,68,0.3);" onclick="submitOneTimeLoanPro()"><i class="fas fa-paper-plane"></i> Submit Request</button>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+        otSelectedType = 'onetime';
+    };
+
+    window.closeOneTimeLoanPro = function() {
+        const el = document.getElementById('oneTimeLoanSubPage');
+        if(el) el.remove();
+        openPage('homeScreen');
+    };
+
+    window.selectOtTypePro = function(type) {
+        otSelectedType = type;
+        document.getElementById('otBtnOne').style.borderColor = type === 'onetime' ? '#ff0844' : '#555';
+        document.getElementById('otBtnOne').style.color = type === 'onetime' ? '#ff0844' : '#555';
+        document.getElementById('otBtnOne').style.background = type === 'onetime' ? 'rgba(255,8,68,0.1)' : 'transparent';
+        
+        document.getElementById('otBtnSplit').style.borderColor = type === 'split4' ? '#ff0844' : '#555';
+        document.getElementById('otBtnSplit').style.color = type === 'split4' ? '#ff0844' : '#555';
+        document.getElementById('otBtnSplit').style.background = type === 'split4' ? 'rgba(255,8,68,0.1)' : 'transparent';
+        
+        if(type === 'onetime') {
+            document.getElementById('otEmiContainer').style.display = 'none';
+            document.getElementById('otSingleContainer').style.display = 'flex';
+        } else {
+            document.getElementById('otEmiContainer').style.display = 'flex';
+            document.getElementById('otSingleContainer').style.display = 'none';
+        }
+        updateOtPreviewPro();
+    };
+
+    window.updateOtPreviewPro = function() {
+        const amt = parseInt(document.getElementById('otAmountSlider').value);
+        document.getElementById('otAmountView').innerText = amt;
+        document.getElementById('otPrincipal').innerText = amt;
+        
+        const intRate = otSelectedType === 'onetime' ? 0.25 : 0.45;
+        const interest = amt * intRate;
+        document.getElementById('otInterest').innerText = interest.toFixed(0);
+        
+        const total = amt + interest;
+        document.getElementById('otTotal').innerText = total.toFixed(0);
+        
+        if(otSelectedType === 'split4') {
+            document.getElementById('otEmi').innerText = Math.ceil(total / 4);
+        } else {
+            document.getElementById('otSingle').innerText = total.toFixed(0);
+        }
+    };
+
+    window.submitOneTimeLoanPro = async function() {
+        const amt = parseInt(document.getElementById('otAmountSlider').value);
+        const intRate = otSelectedType === 'onetime' ? 0.25 : 0.45;
+        const loanType = otSelectedType === 'onetime' ? 'onetime_1' : 'onetime_4';
+
+        const isConfirm = await customConfirm(`Apply for ₹${amt} Loan with ${intRate*100}% interest?`);
+        if(!isConfirm) return;
+        
+        Buffer.show('Submitting...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({ loanStatus: 'pending' });
+            await db.collection('admin_requests').add({
+                uid: currentUserData.uid, name: currentUserData.fullname, kyc: currentUserData.loanKYC || {},
+                amount: amt, type: 'loan', loanType: loanType, interest: intRate, status: 'pending', timestamp: Date.now()
+            });
+            Buffer.hide(); closeOneTimeLoanPro();
+            showToast('Loan request sent to admin!');
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৪. Overdue Date এবং Panel এর লজিক (অ্যাডমিন অ্যাপ্রুভ)
+    const ogAdminApproveFinal = window.adminApprove;
+    window.adminApprove = async function(docId, uid, type, amount, loanType, interest) {
+        
+        // আমাদের নতুন লোনগুলোর জন্য সঠিক ডিউ ডেট বসানোর লজিক
+        if (type === 'loan' && (loanType === 'weekly_4' || loanType === 'onetime_1' || loanType === 'onetime_4')) {
+            const isConfirm = await customConfirm('Approve this Special Loan?');
+            if(!isConfirm) return;
+            Buffer.show('Approving...');
+            try {
+                // onetime_1 হলে ৭ দিন, বাকি সব ক্ষেত্রে ২৮ দিন (৪ সপ্তাহ)
+                let days = (loanType === 'onetime_1') ? 7 : 28; 
+                const dueDate = Date.now() + (days * 24 * 60 * 60 * 1000);
+                
+                await db.collection('users').doc(uid).update({ 
+                    loanStatus: 'active', 
+                    activeLoan: { 
+                        amount: amount, type: loanType, interest: interest, 
+                        paid: 0, dueDate: dueDate, status: 'active', penalty: 0 
+                    }
+                });
+                await db.collection('admin_requests').doc(docId).update({ status: 'approved' });
+                Buffer.hide(); showToast('Special Loan approved successfully!');
+                openAdminModal(type);
+            } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+            return;
+        }
+        
+        // পুরোনো লোনগুলোর জন্য আগের ফাংশনই কাজ করবে
+        return ogAdminApproveFinal(docId, uid, type, amount, loanType, interest);
+    };
+
+})();
+</script>
+<!-- ================= [ END PRO UPDATE ] ================= -->
+<!-- ================= [ NEW UPDATE: LEADERBOARD & S-COIN SYSTEM (PRO UI) ] ================= -->
+<style>
+  /* Premium Leaderboard Button */
+  @keyframes premiumPulse {
+      0% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); }
+      50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); border-color: #FFD700; transform: translateY(-1px); }
+      100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.2); border-color: rgba(255, 215, 0, 0.5); transform: translateY(0); }
+  }
+  .leaderboard-chip-btn {
+      background: linear-gradient(145deg, rgba(255, 215, 0, 0.1), rgba(0, 0, 0, 0.6));
+      border: 1px solid #FFD700;
+      color: #FFD700;
+      padding: 6px 12px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      animation: premiumPulse 2s infinite;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      z-index: 100;
+  }
+  .leaderboard-chip-btn i {
+      font-size: 14px;
+      filter: drop-shadow(0 0 5px #FFD700);
+  }
+
+  /* Coin Falling Animation */
+  #coinFallOverlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+      z-index: 9999999; display: none; overflow: hidden; align-items: center; justify-content: center; flex-direction: column;
+  }
+  .big-trophy-anim { font-size: 100px; color: #FFD700; filter: drop-shadow(0 0 30px #FFD700); animation: popZoom 0.5s ease-out forwards, floatTrophy 2s infinite ease-in-out; }
+  .falling-coin { position: absolute; top: -50px; font-size: 25px; color: #FFD700; filter: drop-shadow(0 0 5px #FFA500); animation: coinFall linear forwards; }
+  
+  @keyframes popZoom { 0% { transform: scale(0); opacity:0; } 100% { transform: scale(1); opacity:1; } }
+  @keyframes floatTrophy { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+  @keyframes coinFall { to { transform: translateY(110vh) rotate(720deg); } }
+
+  /* Leaderboard Styling */
+  .leaderboard-item {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: center; transition: 0.3s;
+  }
+  .leaderboard-item:hover { background: rgba(255,215,0,0.1); border-color: #FFD700; transform: scale(1.02); }
+  .rank-badge {
+      width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 16px; background: #333; color: #fff; border: 2px solid #555;
+  }
+  .rank-1 { background: linear-gradient(135deg, #FFD700, #FDB931); color: #000; border-color: #fff; box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+  .rank-2 { background: linear-gradient(135deg, #E0E0E0, #9E9E9E); color: #000; border-color: #fff; }
+  .rank-3 { background: linear-gradient(135deg, #CD7F32, #A0522D); color: #fff; border-color: #fff; }
+</style>
+
+<script>
+(function initLeaderboardSystem() {
+    // ১. হেডারে প্রফেশনাল মুকুট (Crown) বাটন ইনজেক্ট করা
+    const injectTrophyButton = () => {
+        const headerRightSide = document.querySelector('.header > div');
+        if (headerRightSide && !document.getElementById('navTrophyBtn')) {
+            const trophyHTML = `<div id="navTrophyBtn" class="leaderboard-chip-btn" onclick="startCoinAnimation()"><i class="fas fa-crown"></i> Rank</div>`;
+            headerRightSide.insertAdjacentHTML('afterbegin', trophyHTML);
+        }
+    };
+
+    const ogUpdateUIForLeaderboard = window.updateUI;
+    window.updateUI = function() {
+        if(ogUpdateUIForLeaderboard) ogUpdateUIForLeaderboard();
+        injectTrophyButton();
+    };
+    setTimeout(injectTrophyButton, 2000);
+
+    // ২. কয়েন অ্যানিমেশন লজিক
+    window.startCoinAnimation = function() {
+        if(!currentUserData) return showToast('Please login to view Leaderboard');
+        
+        // অ্যানিমেশন ওভারলে তৈরি করা
+        if(document.getElementById('coinFallOverlay')) document.getElementById('coinFallOverlay').remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'coinFallOverlay';
+        overlay.innerHTML = `
+            <i class="fas fa-crown big-trophy-anim"></i>
+            <h2 style="color:#FFD700; margin-top:20px; text-shadow:0 0 15px #FFD700; letter-spacing:2px; z-index:2;">Star Leaderboard</h2>
+        `;
+        document.body.appendChild(overlay);
+        overlay.style.display = 'flex';
+
+        // কয়েন জেনারেটর
+        for (let i = 0; i < 40; i++) {
+            setTimeout(() => {
+                let coin = document.createElement('i');
+                coin.className = 'fas fa-coins falling-coin';
+                coin.style.left = Math.random() * 100 + 'vw';
+                coin.style.fontSize = (Math.random() * 20 + 15) + 'px';
+                coin.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
+                overlay.appendChild(coin);
+            }, i * 50);
+        }
+
+        // ২.৫ সেকেন্ড পর লিডারবোর্ড ওপেন হবে
+        setTimeout(() => {
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.5s';
+            setTimeout(() => {
+                overlay.remove();
+                openLeaderboardPage();
+            }, 500);
+        }, 2500);
+    };
+
+    // ৩. পয়েন্ট ক্যালকুলেশন লজিক
+    const calculatePoints = (u) => {
+        let pts = 0;
+        const currentMonth = new Date().getMonth();
+        
+        if(u.transactionHistory) {
+            u.transactionHistory.forEach(txn => {
+                let d = new Date(txn.date);
+                if(d.getMonth() === currentMonth) {
+                    pts += (txn.amount * 0.1); 
+                }
+            });
+        }
+        if(u.activeLoan && u.activeLoan.penalty > 0) {
+            pts -= (u.activeLoan.penalty * 5); 
+        }
+        return Math.floor(pts);
+    };
+
+    // ৪. লিডারবোর্ড পেজ ডিজাইন ও লজিক
+    window.openLeaderboardPage = function() {
+        const subPage = document.createElement('div');
+        subPage.id = 'leaderboardSubPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+        subPage.style.padding = '0';
+        subPage.style.background = '#0a0a0f';
+
+        const monthName = new Date().toLocaleString('bn-IN', { month: 'long', year: 'numeric' });
+
+        subPage.innerHTML = `
+          <div style="background:linear-gradient(135deg, #1f1c2c, #928DAB); padding:20px; border-radius:0 0 25px 25px; text-align:center; position:relative; box-shadow:0 10px 20px rgba(0,0,0,0.5);">
+             <button class="page-back" style="position:absolute; left:15px; top:20px; background:rgba(0,0,0,0.3);" onclick="closeLeaderboardPage()"><i class="fas fa-arrow-left"></i></button>
+             <i class="fas fa-crown fa-3x" style="color:#FFD700; filter:drop-shadow(0 0 10px #FFD700); margin-bottom:10px;"></i>
+             <h3 style="color:#fff; font-size:22px; font-weight:900; letter-spacing:1px;">Star Leaderboard</h3>
+             <div style="color:#FFD700; font-size:14px; font-weight:bold; margin-top:5px;"><i class="fas fa-calendar-alt"></i> চলতি মাস: ${monthName}</div>
+             <button onclick="showLeaderboardRules()" style="background:rgba(255,255,255,0.2); color:#fff; border:1px solid #fff; padding:6px 15px; border-radius:20px; margin-top:15px; font-size:12px; cursor:pointer;"><i class="fas fa-info-circle"></i> নিয়মাবলী ও পুরষ্কার</button>
+          </div>
+
+          <div style="padding:20px;">
+             <div style="background:linear-gradient(145deg, rgba(255,215,0,0.1), rgba(0,0,0,0.6)); border:1px solid #FFD700; border-radius:15px; padding:15px; margin-bottom:25px; text-align:center; box-shadow:0 5px 15px rgba(255,215,0,0.15);">
+                 <div style="font-size:13px; color:#ccc;">আপনার বর্তমান S-Coins</div>
+                 <div style="font-size:32px; font-weight:900; color:#FFD700; margin:5px 0; text-shadow:0 0 10px rgba(255,215,0,0.5);"><i class="fas fa-coins"></i> <span id="myScoinsDisplay">0</span></div>
+                 <div style="font-size:12px; color:#aaa; margin-bottom:15px;">1000 S-Coins = ₹10 Main Wallet Cash</div>
+                 <button class="auth-btn" style="background:#FFD700; color:#000; padding:12px; font-size:15px;" onclick="convertSCoins()"><i class="fas fa-exchange-alt"></i> Convert to Wallet</button>
+             </div>
+
+             <h4 style="color:var(--primary); margin-bottom:15px; border-bottom:1px dashed #333; padding-bottom:10px;"><i class="fas fa-list-ol"></i> Top Users</h4>
+             <div id="leaderboardListContainer" style="min-height:200px;">
+                 <div style="text-align:center; padding:30px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#FFD700;"></i></div>
+             </div>
+          </div>
+        `;
+        
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        fetchAndRenderLeaderboard();
+    };
+
+    window.closeLeaderboardPage = function() {
+        const el = document.getElementById('leaderboardSubPage');
+        if(el) el.remove();
+        openPage('homeScreen');
+    };
+
+    // ৫. ফায়ারবেস থেকে ডাটা ফেচ এবং রেংকিং
+    window.fetchAndRenderLeaderboard = function() {
+        db.collection('users').get().then(snap => {
+            let usersList = [];
+            let myTotalPoints = 0;
+
+            snap.forEach(doc => {
+                let u = doc.data();
+                if(u.role !== 'admin') {
+                    let pts = calculatePoints(u);
+                    usersList.push({ uid: doc.id, name: u.fullname, points: pts });
+                    
+                    if(doc.id === currentUserData.uid) {
+                        myTotalPoints = pts;
+                    }
+                }
+            });
+
+            usersList.sort((a,b) => b.points - a.points);
+
+            const converted = currentUserData.convertedSCoins || 0;
+            let availableCoins = myTotalPoints - converted;
+            if(availableCoins < 0) availableCoins = 0;
+            document.getElementById('myScoinsDisplay').innerText = availableCoins;
+
+            let html = '';
+            usersList.slice(0, 50).forEach((u, index) => {
+                const rank = index + 1;
+                let rankClass = 'rank-badge';
+                if(rank === 1) rankClass += ' rank-1';
+                else if(rank === 2) rankClass += ' rank-2';
+                else if(rank === 3) rankClass += ' rank-3';
+
+                const isMe = u.uid === currentUserData.uid;
+                const borderStyle = isMe ? 'border: 1px solid var(--primary); background: rgba(0,242,254,0.1);' : '';
+
+                html += `
+                <div class="leaderboard-item" style="${borderStyle}">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div class="${rankClass}">${rank}</div>
+                        <div>
+                            <div style="font-weight:bold; color:#fff; font-size:15px;">${u.name} ${isMe ? '<span style="color:var(--primary); font-size:11px;">(You)</span>' : ''}</div>
+                        </div>
+                    </div>
+                    <div style="color:${u.points < 0 ? 'var(--danger)' : '#FFD700'}; font-weight:900; font-size:16px;">
+                        ${u.points} pts
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('leaderboardListContainer').innerHTML = html;
+        }).catch(err => {
+            document.getElementById('leaderboardListContainer').innerHTML = `<div style="color:var(--danger); text-align:center;">Error loading leaderboard.</div>`;
+        });
+    };
+
+    // ৬. S-Coin Convert লজিক
+    window.convertSCoins = async function() {
+        const totalPoints = calculatePoints(currentUserData);
+        const converted = currentUserData.convertedSCoins || 0;
+        const available = totalPoints - converted;
+
+        if (available < 100) {
+            return showToast('কনভার্ট করার জন্য ন্যূনতম 100 S-Coins প্রয়োজন!');
+        }
+
+        const convertAmountRs = Math.floor(available * 0.01);
+        
+        const isConfirm = await customConfirm(`আপনি কি ${available} S-Coins কনভার্ট করে ওয়ালেটে ₹${convertAmountRs} যুক্ত করতে চান?`);
+        if(!isConfirm) return;
+
+        Buffer.show('Converting...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({
+                wallet: firebase.firestore.FieldValue.increment(convertAmountRs),
+                convertedSCoins: firebase.firestore.FieldValue.increment(available)
+            });
+            
+            currentUserData.convertedSCoins = (currentUserData.convertedSCoins || 0) + available;
+            currentUserData.wallet = (currentUserData.wallet || 0) + convertAmountRs;
+            
+            addHistoryRecord(currentUserData.uid, 'S-Coins Converted to Cash', convertAmountRs, 'credit');
+            
+            document.getElementById('myScoinsDisplay').innerText = '0';
+            Buffer.hide();
+            showToast(`কনভার্ট সফল! মেইন ওয়ালেটে ₹${convertAmountRs} যুক্ত হয়েছে।`);
+            updateUI();
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৭. রুলস এবং নোটিশ মডাল
+    window.showLeaderboardRules = function() {
+        const modalHTML = `
+        <div id="leaderboardRulesModal" class="admin-modal-overlay" style="z-index:999999; display:flex;">
+            <div class="admin-modal-box" style="border: 2px solid #FFD700; background: #151520;">
+                <button class="close-modal" onclick="document.getElementById('leaderboardRulesModal').remove()"><i class="fas fa-times"></i></button>
+                <h3 style="color:#FFD700; margin-bottom:15px; text-align:center;"><i class="fas fa-scroll"></i> লিডারবোর্ড নিয়মাবলী</h3>
+                
+                <div style="background:#000; padding:15px; border-radius:10px; font-size:13px; color:#ddd; line-height:1.6; border:1px dashed #555;">
+                    <strong style="color:var(--primary); font-size:15px;">কীভাবে পয়েন্ট পাবেন?</strong><br>
+                    • অ্যাপে লোন নেওয়া বা ইনভেস্ট করার পরিমাণের উপর ভিত্তি করে অটোমেটিকভাবে S-Coins বা পয়েন্ট যুক্ত হবে।<br>
+                    • <strong>ওভারডিউ (Overdue):</strong> যদি আপনার লোনের ডিউ ডেট পার হয়ে যায়, তবে আপনার অর্জিত পয়েন্ট থেকে মাইনাস (-) হয়ে যাবে।
+                    <br><br>
+                    <strong style="color:var(--success); font-size:15px;">মাসিক পুরষ্কার:</strong><br>
+                    প্রতি মাসের শেষে লিডারবোর্ডে যিনি <strong>১ম স্থানে</strong> থাকবেন, তাকে অ্যাপের পক্ষ থেকে <strong>1000 S-Coins</strong> (বা ₹10) বোনাস দেওয়া হবে!
+                    <br><br>
+                    <strong style="color:#FFD700; font-size:15px;">কনভার্ট সিস্টেম:</strong><br>
+                    আপনার অর্জিত S-Coins গুলোকে আপনি যেকোনো সময় মেইন ওয়ালেটের টাকার সাথে কনভার্ট করতে পারবেন। (1000 S-Coins = ₹10).
+                </div>
+                
+                <button class="auth-btn" style="background:#333; color:#fff; margin-top:15px;" onclick="document.getElementById('leaderboardRulesModal').remove()">ওকে, বুঝেছি</button>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    };
+
+})();
+</script>
+<!-- ================= [ END LEADERBOARD UPDATE ] ================= -->
+<!-- ================= [ FINAL FULL UPDATE: PREMIUM REFER & EARN SYSTEM ] ================= -->
+<style>
+    /* Premium Referral Dashboard Styling */
+    .ref-stat-card-pro { 
+        background: linear-gradient(145deg, rgba(46, 204, 113, 0.1), rgba(0,0,0,0.8)); 
+        border: 1px solid rgba(46, 204, 113, 0.5); 
+        border-radius: 20px; padding: 25px 20px; text-align: center; 
+        box-shadow: 0 10px 25px rgba(46, 204, 113, 0.15); 
+    }
+    .ref-rules-card {
+        background: #111; border-radius: 15px; padding: 20px; 
+        border: 1px dashed rgba(46, 204, 113, 0.4); margin: 20px 0;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+    }
+    .ref-user-item-pro { 
+        background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(0,0,0,0.4)); 
+        border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; 
+        padding: 18px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .ref-task-pro { 
+        display: flex; justify-content: space-between; align-items: center; 
+        font-size: 13px; padding: 10px 12px; background: rgba(0,0,0,0.5); 
+        border-radius: 10px; margin-top: 8px; font-weight: 500;
+    }
+    .task-pending-pro { color: var(--warning); border-left: 3px solid var(--warning); }
+    .task-completed-pro { color: var(--success); border-left: 3px solid var(--success); background: rgba(46, 204, 113, 0.05); }
+    
+    /* Code Prompt Modal */
+    .refer-code-box-pro {
+        background: #151520; border: 2px solid #2ecc71; border-radius: 20px;
+        padding: 30px 20px; width: 100%; max-width: 380px; text-align: center;
+        box-shadow: 0 15px 40px rgba(46, 204, 113, 0.3); animation: popIn 0.4s ease;
+    }
+</style>
+
+<script>
+(function initPremiumReferAndEarn() {
+    
+    // ১. মেনুবারে (Sidebar) বাটন ইনজেক্ট করা (Solid Fix)
+    const injectReferButtonSafely = () => {
+        const sidebar = document.getElementById('sidebarMenu');
+        if (sidebar && !document.getElementById('navReferBtn')) {
+            let homeItem = null;
+            const items = sidebar.querySelectorAll('.sidebar-item');
+            items.forEach(item => {
+                if (item.innerHTML.includes('homeScreen') || item.innerHTML.includes('Home')) homeItem = item;
+            });
+            const referHTML = `
+                <div id="navReferBtn" class="sidebar-item" onclick="toggleSidebar(); openReferPagePro()" 
+                     style="background: linear-gradient(145deg, rgba(46, 204, 113, 0.15), rgba(0,0,0,0.6)); border-left: 4px solid #2ecc71; color: #2ecc71; font-weight: 900; text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); box-shadow: inset 0 0 15px rgba(46, 204, 113, 0.1); margin: 5px 0;">
+                    <i class="fas fa-gift" style="color:#2ecc71; filter: drop-shadow(0 0 5px #2ecc71);"></i> 
+                    <span class="lang-txt" data-en="Refer & Earn" data-bn="রেফার করুন ও আয় করুন">Refer & Earn</span>
+                </div>`;
+            if (homeItem) homeItem.insertAdjacentHTML('afterend', referHTML);
+            else sidebar.insertAdjacentHTML('afterbegin', referHTML);
+        }
+    };
+    setInterval(injectReferButtonSafely, 1000);
+    setTimeout(injectReferButtonSafely, 500);
+
+    // ২. নতুন ইউজারদের জন্য রেফারেল কোড পপ-আপ
+    const checkReferralPromptPro = () => {
+        if (typeof currentUserData === 'undefined' || !currentUserData || typeof isAdmin !== 'undefined' && isAdmin) return;
+        if (!currentUserData.referredBy && !currentUserData.hasSkippedReferral) {
+            if (!document.getElementById('referralPromptModalPro')) {
+                const modalHTML = `
+                <div id="referralPromptModalPro" class="admin-modal-overlay" style="z-index:9999999; display:flex;">
+                    <div class="refer-code-box-pro">
+                        <i class="fas fa-gift fa-3x" style="color:#2ecc71; margin-bottom:15px; filter:drop-shadow(0 0 15px rgba(46,204,113,0.5));"></i>
+                        <h3 style="color:#2ecc71; margin-bottom:10px;">Enter Referral Code</h3>
+                        <p style="color:#ccc; font-size:13px; margin-bottom:20px; line-height:1.6;">আপনার বন্ধুর রেফারেল কোড (User ID) ব্যবহার করুন। এটি শুধুমাত্র একবারের সুযোগ!</p>
+                        <input type="text" id="refCodeInputPro" class="auth-input" placeholder="Enter Friend's User ID" style="text-align:center; text-transform:lowercase; font-size:16px; border-color:#2ecc71;">
+                        <button class="auth-btn" style="background:linear-gradient(135deg, #2ecc71, #27ae60); color:#000; font-size:16px; margin-bottom:12px; font-weight:900;" onclick="applyRefCodePro()">Apply Code</button>
+                        <button class="btn-outline" style="border-color:#444; color:#888; font-size:14px; padding:10px;" onclick="skipRefCodePro()">Skip (Don't have a code)</button>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            } else {
+                document.getElementById('referralPromptModalPro').style.display = 'flex';
+            }
+        }
+    };
+    const ogUpdateUIForReferPro = window.updateUI;
+    window.updateUI = function() {
+        if (ogUpdateUIForReferPro) ogUpdateUIForReferPro();
+        setTimeout(checkReferralPromptPro, 1500); 
+    };
+
+    window.skipRefCodePro = async function() {
+        const isConfirm = await customConfirm("আপনি কি নিশ্চিত? পরে আর রেফারেল কোড দিতে পারবেন না!");
+        if(!isConfirm) return;
+        Buffer.show('Processing...');
+        try {
+            await db.collection('users').doc(currentUserData.uid).update({ hasSkippedReferral: true });
+            currentUserData.hasSkippedReferral = true;
+            document.getElementById('referralPromptModalPro').style.display = 'none';
+            Buffer.hide(); showToast('Referral Skipped!');
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    window.applyRefCodePro = async function() {
+        const code = document.getElementById('refCodeInputPro').value.trim().toLowerCase();
+        if(!code) return showToast('Please enter a referral code');
+        if(code === currentUserData.username.toLowerCase()) return showToast('You cannot use your own code!');
+        Buffer.show('Verifying Code...');
+        try {
+            const userSnap = await db.collection('users').where('username', '==', code).get();
+            if (userSnap.empty) { Buffer.hide(); return showToast('Invalid Referral Code!'); }
+            let referrerUid = '';
+            userSnap.forEach(doc => referrerUid = doc.id);
+            await db.collection('users').doc(currentUserData.uid).update({
+                referredBy: code, hasSkippedReferral: false,
+                referralTasks: { referrerUid: referrerUid, loanTaken: false, loanRepaid: false, fdTaken: false }
+            });
+            currentUserData.referredBy = code;
+            document.getElementById('referralPromptModalPro').style.display = 'none';
+            Buffer.hide(); showToast('Referral Code Applied Successfully!');
+        } catch(e) { Buffer.hide(); showToast('Error: '+e.message); }
+    };
+
+    // ৩. মেইন রেফার পেজ (সুন্দর ও প্রফেশনাল, লম্বা লিস্ট ছাড়া)
+    window.openReferPagePro = function() {
+        if (typeof currentUserData === 'undefined' || !currentUserData) return showToast('Please login');
+
+        if(document.getElementById('referMainPage')) document.getElementById('referMainPage').remove();
+        if(document.getElementById('referTrackPage')) document.getElementById('referTrackPage').remove();
+
+        const subPage = document.createElement('div');
+        subPage.id = 'referMainPage';
+        subPage.className = 'page-screen screen-transition';
+        subPage.style.display = 'block';
+
+        const myCode = currentUserData.username || 'N/A';
+        const totalEarned = currentUserData.referralEarnings || 0;
+        const totalFriends = currentUserData.totalReferredFriends || 0; // Local counter
+
+        subPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="closeReferPagePro()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-gift" style="color:#2ecc71;"></i> Refer & Earn</h3>
+          </div>
+          <div style="padding:10px;">
+             
+             <!-- Premium Header Card -->
+             <div class="ref-stat-card-pro">
+                 <h4 style="color:#2ecc71; margin-bottom:12px; font-size:16px;">Your Referral Code</h4>
+                 <div style="background:rgba(0,0,0,0.8); padding:15px; border-radius:12px; font-size:22px; font-weight:900; color:#fff; letter-spacing:2px; margin-bottom:20px; border:1px dashed #2ecc71; display:flex; align-items:center; justify-content:center; gap:15px;">
+                     ${myCode} <i class="fas fa-copy" style="font-size:18px; color:#2ecc71; cursor:pointer;" onclick="copyToClipboard('${myCode}')"></i>
+                 </div>
+                 <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.05); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);">
+                     <div style="text-align:left;">
+                         <div style="font-size:12px; color:#aaa;">Total Earned</div>
+                         <div style="font-size:24px; font-weight:900; color:var(--success);">₹${totalEarned}</div>
+                     </div>
+                     <div style="text-align:right;">
+                         <div style="font-size:12px; color:#aaa;">Total Friends</div>
+                         <div style="font-size:24px; font-weight:900; color:#fff;" id="refFriendsCountPro">${totalFriends}</div>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Rules Card -->
+             <div class="ref-rules-card">
+                 <h4 style="color:var(--gold); margin-bottom:12px; font-size:15px;"><i class="fas fa-info-circle"></i> Earning Rules:</h4>
+                 <ul style="color:#ccc; font-size:13px; line-height:1.9; margin-left:20px; font-weight:500;">
+                     <li>বন্ধু প্রথমবার যেকোনো লোন নিলে: <strong style="color:#2ecc71;">₹25</strong></li>
+                     <li>বন্ধু ওভারডিউ না করে লোন শোধ করলে: <strong style="color:#2ecc71;">₹25</strong></li>
+                     <li>বন্ধু ₹5,000 বা তার বেশি FD করলে: <strong style="color:#2ecc71;">₹100</strong></li>
+                 </ul>
+                 <div style="font-size:11px; color:#888; margin-top:10px; text-align:center;">*রিওয়ার্ডের টাকা সরাসরি আপনার মেইন ওয়ালেটে যুক্ত হবে।</div>
+             </div>
+
+             <!-- Track Button (Replaces the long list) -->
+             <button class="auth-btn" style="background:linear-gradient(135deg, #2ecc71, #27ae60); color:#000; padding:18px; border-radius:15px; font-size:16px; font-weight:900; width:100%; box-shadow:0 10px 20px rgba(46, 204, 113, 0.3); margin-top:10px;" onclick="openTrackReferralsPage()">
+                 <i class="fas fa-chart-line" style="margin-right:8px;"></i> Track Your Referrals
+             </button>
+          </div>
+        `;
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(subPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Update friends count silently
+        fetchReferralsCountOnly();
+    };
+
+    window.closeReferPagePro = function() {
+        const el = document.getElementById('referMainPage');
+        if (el) el.remove();
+        openPage('homeScreen');
+    };
+
+    // ৪. সম্পূর্ণ নতুন ট্র্যাকিং পেজ (Tracking Page)
+    window.openTrackReferralsPage = function() {
+        if(document.getElementById('referTrackPage')) document.getElementById('referTrackPage').remove();
+
+        const trackPage = document.createElement('div');
+        trackPage.id = 'referTrackPage';
+        trackPage.className = 'page-screen screen-transition';
+        trackPage.style.display = 'block';
+
+        trackPage.innerHTML = `
+          <div class="page-header">
+            <button class="page-back" onclick="backToReferMain()"><i class="fas fa-arrow-left"></i></button>
+            <h3><i class="fas fa-chart-line" style="color:#2ecc71;"></i> Track Referrals</h3>
+          </div>
+          <div style="padding:10px;" id="referralsListContainerPro">
+             <div style="text-align:center; padding:50px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#2ecc71;"></i><div style="margin-top:10px; color:#888; font-size:13px;">Loading data...</div></div>
+          </div>
+        `;
+
+        document.querySelectorAll('.page-screen, #homeScreen').forEach(el => el.style.display = 'none');
+        document.querySelector('.dashboard-container').appendChild(trackPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        fetchFullReferralListPro();
+    };
+
+    window.backToReferMain = function() {
+        const el = document.getElementById('referTrackPage');
+        if(el) el.remove();
+        openReferPagePro();
+    };
+
+    // ৫. ডাটা ফেচিং ফাংশনস
+    window.fetchReferralsCountOnly = function() {
+        if (typeof db === 'undefined' || !currentUserData) return;
+        db.collection('users').where('referralTasks.referrerUid', '==', currentUserData.uid).get().then(snap => {
+            currentUserData.totalReferredFriends = snap.size; // store locally
+            const countEl = document.getElementById('refFriendsCountPro');
+            if(countEl) countEl.innerText = snap.size;
+        }).catch(e => console.log(e));
+    };
+
+    window.fetchFullReferralListPro = function() {
+        if (typeof db === 'undefined' || !currentUserData) return;
+        db.collection('users').where('referralTasks.referrerUid', '==', currentUserData.uid).get().then(snap => {
+            let html = '';
+            snap.forEach(doc => {
+                const f = doc.data();
+                const tasks = f.referralTasks || {};
+                
+                const t1 = tasks.loanTaken ? '<span class="task-completed-pro"><i class="fas fa-check-circle"></i> Loan Taken (+₹25)</span>' : '<span class="task-pending-pro"><i class="fas fa-clock"></i> Pending</span>';
+                const t2 = tasks.loanRepaid ? '<span class="task-completed-pro"><i class="fas fa-check-circle"></i> Repaid (+₹25)</span>' : '<span class="task-pending-pro"><i class="fas fa-clock"></i> Pending</span>';
+                const t3 = tasks.fdTaken ? '<span class="task-completed-pro"><i class="fas fa-check-circle"></i> ₹5K FD (+₹100)</span>' : '<span class="task-pending-pro"><i class="fas fa-clock"></i> Pending</span>';
+
+                html += `
+                <div class="ref-user-item-pro">
+                    <div style="font-size:16px; font-weight:900; color:#fff; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-circle fa-lg" style="color:#2ecc71;"></i> ${f.fullname} <span style="font-size:12px; color:#aaa; font-weight:normal;">(@${f.username})</span>
+                    </div>
+                    <div class="ref-task-pro ${tasks.loanTaken ? 'task-completed-pro' : 'task-pending-pro'}">1. First Loan <span>${t1}</span></div>
+                    <div class="ref-task-pro ${tasks.loanRepaid ? 'task-completed-pro' : 'task-pending-pro'}">2. Timely Repay <span>${t2}</span></div>
+                    <div class="ref-task-pro ${tasks.fdTaken ? 'task-completed-pro' : 'task-pending-pro'}">3. Premium FD <span>${t3}</span></div>
+                </div>`;
+            });
+            
+            const listContainer = document.getElementById('referralsListContainerPro');
+            if (listContainer) {
+                listContainer.innerHTML = html || `
+                <div style="text-align:center; background:#111; border:1px dashed #444; border-radius:15px; padding:40px 20px;">
+                    <i class="fas fa-user-plus fa-3x" style="color:#555; margin-bottom:15px;"></i>
+                    <div style="color:#aaa; font-size:14px; line-height:1.6;">You haven't referred anyone yet.<br>Share your code with friends to start earning!</div>
+                </div>`;
+            }
+        }).catch(err => {
+            const listContainer = document.getElementById('referralsListContainerPro');
+            if (listContainer) listContainer.innerHTML = '<div style="color:var(--danger); text-align:center; padding:30px;">Error loading data.</div>';
+        });
+    };
+
+    // ৬. অটোমেটিক রিওয়ার্ড দেওয়ার ফাংশন
+    const giveReferralReward = async (referrerUid, amount, reason, taskKey, friendUid) => {
+        try {
+            await db.collection('users').doc(referrerUid).update({
+                wallet: firebase.firestore.FieldValue.increment(amount),
+                referralEarnings: firebase.firestore.FieldValue.increment(amount)
+            });
+            const historyObj = { msg: `Referral Bonus: ${reason}`, amount: amount, type: 'credit', date: Date.now() };
+            await db.collection('users').doc(referrerUid).update({ transactionHistory: firebase.firestore.FieldValue.arrayUnion(historyObj) });
+            await db.collection('users').doc(friendUid).update({ [`referralTasks.${taskKey}`]: true });
+        } catch (e) { console.error("Reward Error:", e); }
+    };
+
+    // ৭. ওভাররাইড হুকস (Rewards Logic)
+    const ogCreateFDForRef = window.createFD;
+    window.createFD = async function() {
+        await ogCreateFDForRef();
+        setTimeout(() => {
+            if(currentUserData && currentUserData.referralTasks && !currentUserData.referralTasks.fdTaken && currentUserData.referralTasks.referrerUid) {
+                const fds = currentUserData.fds || [];
+                if(fds.some(fd => fd.amount >= 5000)) {
+                    giveReferralReward(currentUserData.referralTasks.referrerUid, 100, 'Friend opened ₹5000 FD', 'fdTaken', currentUserData.uid);
+                }
+            }
+        }, 2000);
+    };
+
+    const ogRepayWalletForRef = window.repayFromWallet;
+    window.repayFromWallet = async function(emi) {
+        const loanBefore = currentUserData.activeLoan;
+        await ogRepayWalletForRef(emi);
+        setTimeout(() => {
+            if(currentUserData && currentUserData.referralTasks && currentUserData.referralTasks.referrerUid && !currentUserData.referralTasks.loanRepaid) {
+                if(!currentUserData.activeLoan && loanBefore && (loanBefore.penalty || 0) === 0 && (loanBefore.daysLate || 0) === 0) {
+                    giveReferralReward(currentUserData.referralTasks.referrerUid, 25, 'Friend repaid loan on time', 'loanRepaid', currentUserData.uid);
+                }
+            }
+        }, 2000);
+    };
+
+    const ogAdminApproveForRef = window.adminApprove;
+    window.adminApprove = async function(docId, uid, type, amount, loanType, interest) {
+        let userBefore = null;
+        if(type === 'loanRepay') {
+            const d = await db.collection('users').doc(uid).get();
+            userBefore = d.data();
+        }
+        
+        const result = await ogAdminApproveForRef(docId, uid, type, amount, loanType, interest);
+        
+        if(type === 'loan' || type === 'smallLoan' || type === 'trustedLoan') {
+            const uDoc = await db.collection('users').doc(uid).get();
+            const u = uDoc.data();
+            if(u && u.referralTasks && u.referralTasks.referrerUid && !u.referralTasks.loanTaken) {
+                giveReferralReward(u.referralTasks.referrerUid, 25, 'Friend took first loan', 'loanTaken', uid);
+            }
+        } 
+        else if (type === 'loanRepay' && userBefore) {
+            const uDocAfter = await db.collection('users').doc(uid).get();
+            const uAfter = uDocAfter.data();
+            if(userBefore.referralTasks && userBefore.referralTasks.referrerUid && !userBefore.referralTasks.loanRepaid) {
+                if(userBefore.activeLoan && !uAfter.activeLoan && (userBefore.activeLoan.penalty || 0) === 0) {
+                    giveReferralReward(userBefore.referralTasks.referrerUid, 25, 'Friend repaid loan on time', 'loanRepaid', uid);
+                }
+            }
+        }
+        return result;
+    };
+
+})();
+</script>
+<!-- ================= [ END FULL UPDATE ] ================= -->
 
 </body>
 </html>
